@@ -1,0 +1,64 @@
+{
+  "name": "bellybearsings",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Belly Bear Sings - Live Karaoke Queue Platform",
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "firebase:emulators": "cd firebase && firebase emulators:start",
+    "firebase:seed": "cd firebase && node ../scripts/seed-data.js",
+    "storybook": "cd libs/ui && pnpm storybook",
+    "setup": "pnpm install && echo 'Setup complete! Run: pnpm dev'",
+    "start": "./scripts/start-dev.sh",
+    "start:quick": "./scripts/start-quick.sh",
+    "stop": "./scripts/stop-dev.sh",
+    "check-ports": "./scripts/check-ports.sh"
+  },
+  "keywords": [
+    "karaoke",
+    "queue",
+    "party",
+    "youtube",
+    "firebase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "dependencies": {
+    "@bellybearsings/firebase-config": "workspace:*",
+    "@bellybearsings/shared": "workspace:*",
+    "@bellybearsings/ui": "workspace:*",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.0",
+    "@mui/material": "^5.15.0",
+    "@types/youtube-player": "^5.5.11",
+    "firebase": "^10.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-qr-code": "^2.0.12",
+    "react-router-dom": "^6.20.0",
+    "react-youtube": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0"
+  }
+}

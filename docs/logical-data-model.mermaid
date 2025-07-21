@@ -1,0 +1,55 @@
+erDiagram
+    Person ||--o{ Party_Attendee : hostsOrAttends
+    Party ||--|{ Party_Attendee : hasMany
+    Party ||--o{ Queue_Item : hasMany
+    Song ||--|{ Queue_Item : isPlayedInMany
+    Person ||--o{ Queue_Item : requests
+
+    Person {
+        UUID Person_Id PK
+        string First_Name
+        string Last_Name
+        string Email
+        string Phone_Number
+        object Profile_Picture
+        datetime Created_At
+        datetime Updated_At
+    }
+
+     Party {
+        UUID Party_Id PK
+        array attendees
+        array songs
+        datetime Created_At
+        datetime Updated_At
+    }
+
+    Party_Attendee {
+        UUID Party_Attendee_Id PK
+        UUID Party_Id FK
+        UUID Person_Id FK
+        string Party_Role
+        datetime Joined_At
+        datetime Left_At    
+    }
+
+    Queue_Item {
+        UUID Queue_Item_Id PK
+        UUID Song_Id FK
+        UUID Requested_By_Person_Id FK
+        boolean Boosted
+        int Praise_Count
+        datetime Added_At
+        datetime Played_At
+    }
+
+    Song {
+        UUID Song_Id PK
+        string Title
+        string Artist
+        string Genre
+        string Duration
+        datetime Created_At
+        datetime Updated_At
+    }
+   

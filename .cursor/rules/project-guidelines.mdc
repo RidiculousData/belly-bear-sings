@@ -1,0 +1,444 @@
+---
+description: This is useful to reference when creating new components and refactoring code.
+alwaysApply: false
+---
+# Cursor Development Rules and Guidelines
+
+This document outlines the coding standards, best practices, and project-specific rules for developing applications using Cursor as the primary code editor. The focus is on building a robust, maintainable, and scalable karaoke party application using TypeScript, ViteJS, Material-UI (MUI), and Google Firebase. All development must prioritize modularity, testability, and separation of concerns. These guidelines aim to minimize code smells, encourage the use of design patterns, and ensure seamless local development with Firebase Emulators, while enabling easy deployment to production Firebase Hosting.
+
+## Table of Contents
+
+- [Tech Stack Overview](#tech-stack-overview)
+- [Coding Standards](#coding-standards)
+- [Best Practices](#best-practices)
+  - [Removing Code Smells](#removing-code-smells)
+  - [Design Patterns](#design-patterns)
+  - [Modularity and Separation of Concerns](#modularity-and-separation-of-concerns)
+  - [Testability](#testability)
+- [Firebase Integration](#firebase-integration)
+  - [Local Development with Emulators](#local-development-with-emulators)
+  - [Deployment to Production](#deployment-to-production)
+  - [Database and Backend Logic](#database-and-backend-logic)
+  - [Authentication](#authentication)
+  - [Object Storage](#object-storage)
+  - [Real-Time Features](#real-time-features)
+- [Analytics Integration](#analytics-integration)
+- [UI/UX and Theming Guidelines](#uiux-and-theming-guidelines)
+  - [Consistent Theming](#consistent-theming)
+  - [Main Party Page (Dashboard)](#main-party-page-dashboard)
+  - [CSS Management](#css-management)
+- [Deployment and Hosting](#deployment-and-hosting)
+- [Version Control and Collaboration](#version-control-and-collaboration)
+- [Enforcement and Reviews](#enforcement-and-reviews)
+
+## Tech Stack Overview
+
+- **Frontend Framework**: ViteJS for fast development and bundling.
+- **Language**: TypeScript (strict mode enabled for type safety).
+- **UI Library**: Material-UI (MUI) v5+ for components and theming.
+- **Backend/Database**: Google Firebase (Firestore for NoSQL database, Cloud Functions for serverless backend logic).
+- **Authentication**: Firebase Authentication.
+- **Storage**: Firebase Storage for file uploads (e.g., song files or user avatars).
+- **Real-Time**: Firestore with real-time listeners for features like global song queues.
+- **Analytics**: Google Analytics (integrated via Firebase SDK).
+- **Hosting**: Firebase Hosting.
+- **Development Tools**: Firebase Emulators for local testing; Cursor for AI-assisted coding.
+
+- Use barrel files (index.ts) in folders for easier imports.
+- Separate concerns: UI components in `components/`, business logic in `services/` or Cloud Functions, state in `contexts/`.
+
+## Coding Standards
+
+- **TypeScript Usage**:
+  - Enable strict mode in `tsconfig.json`.
+  - Type all variables, functions, props, and state.
+  - Use interfaces for object shapes (e.g., `interface Song { id: string; title: string; }`).
+  - Avoid `any` types; use `unknown` when necessary and narrow types safely.
+  - Enforce ESLint with TypeScript rules (e.g., `@typescript-eslint/no-unused-vars`).
+
+- **Naming Conventions**:
+  - Variables/Functions: camelCase (e.g., `addSongToQueue`).
+  - Components: PascalCase (e.g., `SongQueue`).
+  - Constants: UPPER_SNAKE_CASE (e.g., `MAX_QUEUE_SIZE`).
+  - Files: kebab-case for non-component files (e.g., `firestore-service.ts`), PascalCase for components.
+
+- **Code Formatting**:
+  - Use Prettier for consistent formatting (indent: 2 spaces, single quotes).
+  - Limit line length to 100 characters.
+  - Always include JSDoc comments for functions and components explaining purpose, params, and returns.
+
+- **Error Handling**:
+  - Use try-catch for async operations.
+  - Throw custom errors (e.g., `class FirestoreError extends Error {}`).
+  - Log errors to console in dev; integrate with Firebase Crashlytics in prod.
+
+## Best Practices
+IMPORTANT! Check if the server is running on port 3000 before starting another instance after refactoring.
+
+### Removing Code Smells
+
+- **Common Smells to Avoid/Refactor**:
+  - Long methods: Break functions exceeding 20 lines into smaller ones.
+  - Duplicated code: Extract to utilities or hooks (e.g., reuse `useAuth` hook instead of repeating auth logic).
+  - Large classes/components: Split if >200 lines; use composition over inheritance.
+  - Magic numbers/strings: Replace with named constants.
+  - God objects: Avoid components that handle too much (e.g., separate data fetching from rendering).
+  - Primitive obsession: Use custom types/interfaces instead of raw strings/numbers for domain concepts (e.g., `type SongId = string`).
+
+- **Refactoring Process**:
+  - Regularly run tools like SonarLint or ESLint to detect smells.
+  - In code reviews, flag and fix smells before merging.
+
+### Design Patterns
+
+- **Use Where Applicable**:
+  - **Singleton**: For Firebase services (e.g., initialize auth once in a service module).
+  - **Factory**: For creating MUI components with variants (e.g., a button factory for different themes).
+  - **Observer**: Leverage React's built-in (e.g., contexts with useEffect for state changes).
+  - **MVC/MVVM**: Separate Models (Firestore data), Views (MUI components), Controllers/ViewModels (hooks/services).
+  - **Decorator**: Enhance components with HOCs (e.g., `withAuth` HOC for protected routes).
+  - **Strategy**: For interchangeable algorithms (e.g., different sorting strategies for song queues).
+
+- **Guideline**: Only apply patterns if they simplify code; avoid over-engineering.
+
+### Modularity and Separation of Concerns
+
+- **Modularity**:
+  - Each file/module should have a single responsibility (e.g., `authService.ts` only handles auth).
+  - Use dependency injection (e.g., pass services as props or via contexts).
+  - Break down features into sub-modules (e.g., party queue as a separate context).
+
+- **Separation of Concerns**:
+  - UI: Handle rendering with MUI components.
+  - Logic: Business rules in Cloud Functions or services.
+  - Data: Fetching/persistence in dedicated hooks/services.
+  - State: Global state in contexts; local in useState.
+
+### Testability
+
+- **Write Testable Code**:
+  - All code must be designed for unit/integration testing.
+  - Use pure functions where possible (e.g., separate side effects like API calls).
+  - Mock dependencies (e.g., mock Firebase in tests using `@firebase/testing`).
+  - Aim for >80% coverage.
+
+- **Testing Framework**:
+  - Use Vitest for unit tests.
+  - React Testing Library for component tests.
+  - Test key paths: Happy paths, errors, edge cases (e.g., empty queue, concurrent adds).
+  - Integrate Firebase Emulators in integration tests.
+
+## Firebase Integration
+
+### Local Development with Emulators
+
+- Use Firebase Emulators for all local dev to mimic production without costs.
+- Setup: Run `firebase init emulators` and configure in `firebase.json`.
+- Start: `firebase emulators:start --import=./emulator-data --export-on-exit`.
+- Connect SDK: Use `connectFirestoreEmulator(db, 'localhost', 8080)` in dev mode.
+- Easy Deployment: Use scripts to seed emulators from prod data if needed; deploy with `firebase deploy`.
+
+### Deployment to Production
+
+- Use CI/CD (e.g., GitHub Actions) for automated deploys.
+- Separate dev/prod configs via environment variables (e.g., `.env.local` vs `.env.production`).
+- Deploy functions, hosting, and rules separately for safety.
+
+### Database and Backend Logic
+
+- **Firestore**: Use for all database needs (e.g., collections for users, songs, queues).
+  - Structure: Denormalize for performance (e.g., embed song metadata in queue docs).
+  - Security: Define Firestore rules to prevent unauthorized access.
+- **Cloud Functions**: Handle backend logic (e.g., validate song additions, process payments if added).
+  - Triggers: Use onCreate/onUpdate for real-time processing.
+
+### Authentication
+
+- Use Firebase Auth for all auth (email/password, Google, etc.).
+- Integrate with React Router for protected routes.
+- Store user state in a context.
+
+### Object Storage
+
+- Use Firebase Storage for uploads (e.g., song files).
+- Generate signed URLs for secure access.
+- Validate file types/sizes in functions.
+
+### Real-Time Features
+
+- For real-time use cases (e.g., multiple users adding songs to a global queue affecting web UI):
+  - Use Firestore real-time listeners: `onSnapshot(collection(db, 'queues'), (snapshot) => { ... })`.
+  - Handle concurrency: Use transactions for atomic updates (e.g., `runTransaction` to add songs without conflicts).
+  - Optimistic UI: Update local state first, then sync with Firestore.
+  - Scale: Firestore handles high concurrency natively; monitor quotas.
+
+## Analytics Integration
+
+- Integrate Google Analytics via Firebase SDK (`@react-google-analytics/ga4` or Firebase Analytics).
+- Track on all pages: Use `useEffect` to log page views on mount.
+- Key User Actions: Log events for actions like song add, queue update, login (e.g., `logEvent(analytics, 'song_added', { song_id })`).
+- User Testing: Enable user properties for segmentation (e.g., user role).
+- Privacy: Ensure compliance with GDPR; anonymize IPs if needed.
+
+## UI/UX and Theming Guidelines
+
+### Consistent Theming
+
+- Use MUI's theming system: Define a central theme in `styles/theme.ts` (e.g., `createTheme({ palette: { primary: { main: '#ff4081' } } })`).
+- Wrap app in `<ThemeProvider theme={theme}>`.
+- Avoid inline styles; use MUI's `sx` prop or centralized CSS classes.
+- Consistent colors, typography, spacing across components.
+
+### Main Party Page (Dashboard)
+
+- Design to fit entirely on screen without scrolling (e.g., use fixed heights, responsive grids).
+- Layout: Use MUI Grid/Box for dashboard elements (queue list, current song, controls).
+- Viewport: Test on common resolutions (e.g., 1920x1080); use vh/vw units sparingly.
+- Performance: Lazy-load non-essential parts; optimize for real-time updates.
+
+### CSS Management
+
+- Centralize CSS: Use a single `global.css` for overrides; import in `main.tsx`.
+- Prefer MUI styles: Extend components via theme or `styled` from `@mui/material`.
+- Simplicity: Avoid complex selectors; use CSS modules if needed for scoping.
+- Tools: Use Cursor's AI to suggest/refactor CSS for simplicity.
+
+## Deployment and Hosting
+
+- Host on Firebase Hosting: `firebase deploy --only hosting`.
+- CDN: Leverage Firebase's built-in CDN for assets.
+- SSL: Automatic via Firebase.
+- Rollbacks: Use versioning in deploys.
+
+## Version Control and Collaboration
+
+- Use Git with branches (feature/, bugfix/).
+- Commit messages: Conventional Commits (e.g., "feat: add song queue").
+- PRs: Require reviews; check for adherence to these rules.
+
+## Enforcement and Reviews
+
+- Code Reviews: Mandatory; check for standards, smells, patterns, test coverage.
+- Tools: Integrate ESLint, Prettier, Husky for pre-commit hooks.
+- Updates: Review this doc quarterly or on major changes.
+
+Adhere to these guidelines to ensure high-quality, maintainable code. Use Cursor's AI features to assist in refactoring and pattern implementation.# Cursor Development Rules and Guidelines
+
+This document outlines the coding standards, best practices, and project-specific rules for developing applications using Cursor as the primary code editor. The focus is on building a robust, maintainable, and scalable karaoke party application using TypeScript, ViteJS, Material-UI (MUI), and Google Firebase. All development must prioritize modularity, testability, and separation of concerns. These guidelines aim to minimize code smells, encourage the use of design patterns, and ensure seamless local development with Firebase Emulators, while enabling easy deployment to production Firebase Hosting.
+
+## Table of Contents
+
+- [Tech Stack Overview](#tech-stack-overview)
+- [Coding Standards](#coding-standards)
+- [Best Practices](#best-practices)
+  - [Removing Code Smells](#removing-code-smells)
+  - [Design Patterns](#design-patterns)
+  - [Modularity and Separation of Concerns](#modularity-and-separation-of-concerns)
+  - [Testability](#testability)
+- [Firebase Integration](#firebase-integration)
+  - [Local Development with Emulators](#local-development-with-emulators)
+  - [Deployment to Production](#deployment-to-production)
+  - [Database and Backend Logic](#database-and-backend-logic)
+  - [Authentication](#authentication)
+  - [Object Storage](#object-storage)
+  - [Real-Time Features](#real-time-features)
+- [Analytics Integration](#analytics-integration)
+- [UI/UX and Theming Guidelines](#uiux-and-theming-guidelines)
+  - [Consistent Theming](#consistent-theming)
+  - [Main Party Page (Dashboard)](#main-party-page-dashboard)
+  - [CSS Management](#css-management)
+- [Deployment and Hosting](#deployment-and-hosting)
+- [Version Control and Collaboration](#version-control-and-collaboration)
+- [Enforcement and Reviews](#enforcement-and-reviews)
+
+## Tech Stack Overview
+
+- **Frontend Framework**: ViteJS for fast development and bundling.
+- **Language**: TypeScript (strict mode enabled for type safety).
+- **UI Library**: Material-UI (MUI) v5+ for components and theming.
+- **Backend/Database**: Google Firebase (Firestore for NoSQL database, Cloud Functions for serverless backend logic).
+- **Authentication**: Firebase Authentication.
+- **Storage**: Firebase Storage for file uploads (e.g., song files or user avatars).
+- **Real-Time**: Firestore with real-time listeners for features like global song queues.
+- **Analytics**: Google Analytics (integrated via Firebase SDK).
+- **Hosting**: Firebase Hosting.
+- **Development Tools**: Firebase Emulators for local testing; Cursor for AI-assisted coding.
+
+- Use barrel files (index.ts) in folders for easier imports.
+- Separate concerns: UI components in `components/`, business logic in `services/` or Cloud Functions, state in `contexts/`.
+
+## Coding Standards
+
+- **TypeScript Usage**:
+  - Enable strict mode in `tsconfig.json`.
+  - Type all variables, functions, props, and state.
+  - Use interfaces for object shapes (e.g., `interface Song { id: string; title: string; }`).
+  - Avoid `any` types; use `unknown` when necessary and narrow types safely.
+  - Enforce ESLint with TypeScript rules (e.g., `@typescript-eslint/no-unused-vars`).
+
+- **Naming Conventions**:
+  - Variables/Functions: camelCase (e.g., `addSongToQueue`).
+  - Components: PascalCase (e.g., `SongQueue`).
+  - Constants: UPPER_SNAKE_CASE (e.g., `MAX_QUEUE_SIZE`).
+  - Files: kebab-case for non-component files (e.g., `firestore-service.ts`), PascalCase for components.
+
+- **Code Formatting**:
+  - Use Prettier for consistent formatting (indent: 2 spaces, single quotes).
+  - Limit line length to 100 characters.
+  - Always include JSDoc comments for functions and components explaining purpose, params, and returns.
+
+- **Error Handling**:
+  - Use try-catch for async operations.
+  - Throw custom errors (e.g., `class FirestoreError extends Error {}`).
+  - Log errors to console in dev; integrate with Firebase Crashlytics in prod.
+
+## Best Practices
+
+### Removing Code Smells
+
+- **Common Smells to Avoid/Refactor**:
+  - Long methods: Break functions exceeding 20 lines into smaller ones.
+  - Duplicated code: Extract to utilities or hooks (e.g., reuse `useAuth` hook instead of repeating auth logic).
+  - Large classes/components: Split if >200 lines; use composition over inheritance.
+  - Magic numbers/strings: Replace with named constants.
+  - God objects: Avoid components that handle too much (e.g., separate data fetching from rendering).
+  - Primitive obsession: Use custom types/interfaces instead of raw strings/numbers for domain concepts (e.g., `type SongId = string`).
+
+- **Refactoring Process**:
+  - Regularly run tools like SonarLint or ESLint to detect smells.
+  - In code reviews, flag and fix smells before merging.
+
+### Design Patterns
+
+- **Use Where Applicable**:
+  - **Singleton**: For Firebase services (e.g., initialize auth once in a service module).
+  - **Factory**: For creating MUI components with variants (e.g., a button factory for different themes).
+  - **Observer**: Leverage React's built-in (e.g., contexts with useEffect for state changes).
+  - **MVC/MVVM**: Separate Models (Firestore data), Views (MUI components), Controllers/ViewModels (hooks/services).
+  - **Decorator**: Enhance components with HOCs (e.g., `withAuth` HOC for protected routes).
+  - **Strategy**: For interchangeable algorithms (e.g., different sorting strategies for song queues).
+
+- **Guideline**: Only apply patterns if they simplify code; avoid over-engineering.
+
+### Modularity and Separation of Concerns
+
+- **Modularity**:
+  - Each file/module should have a single responsibility (e.g., `authService.ts` only handles auth).
+  - Use dependency injection (e.g., pass services as props or via contexts).
+  - Break down features into sub-modules (e.g., party queue as a separate context).
+
+- **Separation of Concerns**:
+  - UI: Handle rendering with MUI components.
+  - Logic: Business rules in Cloud Functions or services.
+  - Data: Fetching/persistence in dedicated hooks/services.
+  - State: Global state in contexts; local in useState.
+
+### Testability
+
+- **Write Testable Code**:
+  - All code must be designed for unit/integration testing.
+  - Use pure functions where possible (e.g., separate side effects like API calls).
+  - Mock dependencies (e.g., mock Firebase in tests using `@firebase/testing`).
+  - Aim for >80% coverage.
+
+- **Testing Framework**:
+  - Use Vitest for unit tests.
+  - React Testing Library for component tests.
+  - Test key paths: Happy paths, errors, edge cases (e.g., empty queue, concurrent adds).
+  - Integrate Firebase Emulators in integration tests.
+
+## Firebase Integration
+
+### Local Development with Emulators
+
+- Use Firebase Emulators for all local dev to mimic production without costs.
+- Setup: Run `firebase init emulators` and configure in `firebase.json`.
+- Start: `firebase emulators:start --import=./emulator-data --export-on-exit`.
+- Connect SDK: Use `connectFirestoreEmulator(db, 'localhost', 8080)` in dev mode.
+- Easy Deployment: Use scripts to seed emulators from prod data if needed; deploy with `firebase deploy`.
+
+### Deployment to Production
+
+- Use CI/CD (e.g., GitHub Actions) for automated deploys.
+- Separate dev/prod configs via environment variables (e.g., `.env.local` vs `.env.production`).
+- Deploy functions, hosting, and rules separately for safety.
+
+### Database and Backend Logic
+
+- **Firestore**: Use for all database needs (e.g., collections for users, songs, queues).
+  - Structure: Denormalize for performance (e.g., embed song metadata in queue docs).
+  - Security: Define Firestore rules to prevent unauthorized access.
+- **Cloud Functions**: Handle backend logic (e.g., validate song additions, process payments if added).
+  - Triggers: Use onCreate/onUpdate for real-time processing.
+
+### Authentication
+
+- Use Firebase Auth for all auth (email/password, Google, etc.).
+- Integrate with React Router for protected routes.
+- Store user state in a context.
+
+### Object Storage
+
+- Use Firebase Storage for uploads (e.g., song files).
+- Generate signed URLs for secure access.
+- Validate file types/sizes in functions.
+
+### Real-Time Features
+
+- For real-time use cases (e.g., multiple users adding songs to a global queue affecting web UI):
+  - Use Firestore real-time listeners: `onSnapshot(collection(db, 'queues'), (snapshot) => { ... })`.
+  - Handle concurrency: Use transactions for atomic updates (e.g., `runTransaction` to add songs without conflicts).
+  - Optimistic UI: Update local state first, then sync with Firestore.
+  - Scale: Firestore handles high concurrency natively; monitor quotas.
+
+## Analytics Integration
+
+- Integrate Google Analytics via Firebase SDK (`@react-google-analytics/ga4` or Firebase Analytics).
+- Track on all pages: Use `useEffect` to log page views on mount.
+- Key User Actions: Log events for actions like song add, queue update, login (e.g., `logEvent(analytics, 'song_added', { song_id })`).
+- User Testing: Enable user properties for segmentation (e.g., user role).
+- Privacy: Ensure compliance with GDPR; anonymize IPs if needed.
+
+## UI/UX and Theming Guidelines
+
+### Consistent Theming
+
+- Use MUI's theming system: Define a central theme in `styles/theme.ts` (e.g., `createTheme({ palette: { primary: { main: '#ff4081' } } })`).
+- Wrap app in `<ThemeProvider theme={theme}>`.
+- Avoid inline styles; use MUI's `sx` prop or centralized CSS classes.
+- Consistent colors, typography, spacing across components.
+
+### Main Party Page (Dashboard)
+
+- Design to fit entirely on screen without scrolling (e.g., use fixed heights, responsive grids).
+- Layout: Use MUI Grid/Box for dashboard elements (queue list, current song, controls).
+- Viewport: Test on common resolutions (e.g., 1920x1080); use vh/vw units sparingly.
+- Performance: Lazy-load non-essential parts; optimize for real-time updates.
+
+### CSS Management
+
+- Centralize CSS: Use a single `global.css` for overrides; import in `main.tsx`.
+- Prefer MUI styles: Extend components via theme or `styled` from `@mui/material`.
+- Simplicity: Avoid complex selectors; use CSS modules if needed for scoping.
+- Tools: Use Cursor's AI to suggest/refactor CSS for simplicity.
+
+## Deployment and Hosting
+
+- Host on Firebase Hosting: `firebase deploy --only hosting`.
+- CDN: Leverage Firebase's built-in CDN for assets.
+- SSL: Automatic via Firebase.
+- Rollbacks: Use versioning in deploys.
+
+## Version Control and Collaboration
+
+- Use Git with branches (feature/, bugfix/).
+- Commit messages: Conventional Commits (e.g., "feat: add song queue").
+- PRs: Require reviews; check for adherence to these rules.
+
+## Enforcement and Reviews
+
+- Code Reviews: Mandatory; check for standards, smells, patterns, test coverage.
+- Tools: Integrate ESLint, Prettier, Husky for pre-commit hooks.
+- Updates: Review this doc quarterly or on major changes.
+
+Adhere to these guidelines to ensure high-quality, maintainable code. Use Cursor's AI features to assist in refactoring and pattern implementation.

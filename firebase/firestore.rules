@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // DEVELOPMENT RULES - More permissive for emulator seeding
+    // TODO: Replace with production rules before deploying
+    
+    // Allow all authenticated operations for development
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 
