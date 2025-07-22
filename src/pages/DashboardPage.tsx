@@ -111,8 +111,10 @@ export const DashboardPage: React.FC = () => {
         }
       );
       
-      // Navigate to the party page
-      navigate('/party');
+      // Debug: log the returned party object
+      console.log('Created party:', party);
+      // Navigate to the real Party page with the new party code
+      navigate(`/party/${party.code}`);
     } catch (err) {
       console.error('Error creating party:', err);
       setError('Failed to create party. Please try again.');
@@ -154,9 +156,9 @@ export const DashboardPage: React.FC = () => {
   return (
     <Box
       sx={{
-        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
         minHeight: '100vh',
-        color: 'white',
+        color: 'primary.main',
         position: 'relative',
         overflow: 'hidden',
       }}

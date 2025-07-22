@@ -1,44 +1,37 @@
 import React from 'react';
-import { Button, Stack } from '@mui/material';
-import { Login, PersonAdd } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
+import { Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { GoogleLogo } from './GoogleLogo';
 
 export const AuthButtons: React.FC = () => {
+  const navigate = useNavigate();
+  const { signInWithProvider } = useAuth();
+
+  const handleGoogleSignUp = async () => {
+    try {
+      await signInWithProvider('google');
+      // Redirect to party page after successful authentication
+      navigate('/party');
+    } catch (error) {
+      console.error('Google sign up failed:', error);
+    }
+  };
+
   return (
-    <Stack direction="row" spacing={2}>
-      <Button
-        component={Link}
-        to="/login"
-        variant="outlined"
-        startIcon={<Login />}
-        sx={{
-          borderColor: 'rgba(255, 255, 255, 0.5)',
-          color: 'white',
-          '&:hover': {
-            borderColor: 'white',
-            bgcolor: 'rgba(255, 255, 255, 0.1)',
-          },
-        }}
-      >
-        Login
-      </Button>
-      
-      <Button
-        component={Link}
-        to="/signup"
-        variant="contained"
-        startIcon={<PersonAdd />}
-        sx={{
-          bgcolor: 'rgba(255, 255, 255, 0.2)',
-          backdropFilter: 'blur(10px)',
-          color: 'white',
-          '&:hover': {
-            bgcolor: 'rgba(255, 255, 255, 0.3)',
-          },
-        }}
-      >
-        Sign Up
-      </Button>
-    </Stack>
+    <Button
+      onClick={handleGoogleSignUp}
+      variant="contained"
+      startIcon={<GoogleLogo size={18} />}
+      sx={{
+        bgcolor: 'black',
+        color: 'white',
+        '&:hover': {
+          bgcolor: 'rgba(0, 0, 0, 0.8)',
+        },
+      }}
+    >
+      Sign Up with Google
+    </Button>
   );
 }; 

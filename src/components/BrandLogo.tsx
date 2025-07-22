@@ -6,15 +6,15 @@ interface BrandLogoProps {
   isAuthenticated: boolean;
 }
 
-export const BrandLogo: React.FC<BrandLogoProps> = ({ isAuthenticated }) => {
+export const BrandLogo: React.FC<BrandLogoProps> = () => {
   return (
     <Typography 
       variant="h5" 
       component={Link}
-      to={isAuthenticated ? '/dashboard' : '/'}
+      to="/"
       sx={{ 
         fontWeight: 'bold',
-        color: isAuthenticated ? 'primary.main' : 'white',
+        color: 'primary.main',
         textDecoration: 'none',
         display: 'flex',
         alignItems: 'center',

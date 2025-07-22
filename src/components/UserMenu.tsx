@@ -12,7 +12,7 @@ import {
   Box,
   useTheme,
 } from '@mui/material';
-import { AccountCircle, Logout as LogoutIcon } from '@mui/icons-material';
+import { AccountCircle, Logout as LogoutIcon, Dashboard as DashboardIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { User as AppUser } from '@bellybearsings/shared';
@@ -39,6 +39,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onSignOut
   const handleProfile = () => {
     handleClose();
     navigate('/profile');
+  };
+
+  const handleDashboard = () => {
+    handleClose();
+    navigate('/dashboard');
   };
 
   const handleLogout = async () => {
@@ -152,6 +157,12 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onSignOut
           </Typography>
         </Box>
         <Divider />
+        <MenuItem onClick={handleDashboard}>
+          <ListItemIcon>
+            <DashboardIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Dashboard</ListItemText>
+        </MenuItem>
         <MenuItem onClick={handleProfile}>
           <ListItemIcon>
             <AccountCircle fontSize="small" />

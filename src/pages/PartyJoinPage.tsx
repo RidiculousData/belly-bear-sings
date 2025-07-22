@@ -15,7 +15,7 @@ export const PartyJoinPage: React.FC = () => {
   const { partyId } = useParams<{ partyId: string }>();
 
   return (
-    <Box sx={{ py: 4, bgcolor: 'background.default', minHeight: '100vh' }}>
+    <Box sx={{ py: 4, bgcolor: 'background.default', minHeight: '100vh', background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)' }}>
       <Container maxWidth="lg">
         <Stack spacing={4}>
           {/* Header */}

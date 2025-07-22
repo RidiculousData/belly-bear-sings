@@ -2,10 +2,7 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
-import { LoginPage } from './pages/LoginPage';
-import { SignupPage } from './pages/SignupPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { PartyHostPage } from './pages/PartyHostPage';
 import { PartyJoinPage } from './pages/PartyJoinPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PartyPage } from './pages/PartyPage';
@@ -16,11 +13,9 @@ function App() {
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/party/:partyId/join" element={<PartyJoinPage />} />
-      <Route path="/party/:partyId/participant" element={<ParticipantPage />} />
-      
+      <Route path="/party/:partyCode/join" element={<PartyJoinPage />} />
+      {/* Main Party view for both host and participants */}
+      <Route path="/party/:partyCode" element={<PartyPage />} />
       {/* Protected Routes */}
       <Route path="/dashboard" element={
         <ProtectedRoute>
@@ -32,14 +27,10 @@ function App() {
           <ProfilePage />
         </ProtectedRoute>
       } />
+      {/* Optionally keep /party for legacy or direct access */}
       <Route path="/party" element={
         <ProtectedRoute>
           <PartyPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/party/:partyId" element={
-        <ProtectedRoute>
-          <PartyHostPage />
         </ProtectedRoute>
       } />
     </Routes>

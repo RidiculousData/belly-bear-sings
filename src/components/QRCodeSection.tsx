@@ -13,7 +13,8 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
   partyId,
   onCopyPartyCode 
 }) => {
-  const participantUrl = `${window.location.origin}/party/${partyId}/participant`;
+  // Use the new participant URL format
+  const participantUrl = `${window.location.origin}/party/${partyCode}`;
   
   return (
     <Box sx={{ textAlign: 'center', mb: 3 }}>

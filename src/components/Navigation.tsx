@@ -34,9 +34,7 @@ export const Navigation: React.FC = () => {
               userProfile={userProfile} 
               onSignOut={signOut} 
             />
-          ) : (
-            <AuthButtons />
-          )}
+          ) : null}
         </Toolbar>
       </Container>
     </AppBar>

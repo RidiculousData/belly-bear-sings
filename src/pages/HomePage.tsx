@@ -56,7 +56,7 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <>
+    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)' }}>
       <Hero />
       
       {/* Features Section */}
@@ -164,6 +164,6 @@ export const HomePage: React.FC = () => {
 
       {/* CTA Section */}
       <CTA />
-    </>
+    </Box>
   );
 }; 

@@ -3,14 +3,14 @@ import { createTheme } from '@mui/material/styles';
 export const theme = createTheme({
   palette: {
     primary: {
-      main: '#FF6B6B',
-      light: '#FF9999',
-      dark: '#CC5555',
+      main: '#B2996E', // Light brown
+      light: '#E6D3B3',
+      dark: '#8C7B4F',
     },
     secondary: {
-      main: '#4ECDC4',
-      light: '#7EDDD6',
-      dark: '#3BA99C',
+      main: '#FFF7E6', // Creamy white
+      light: '#FFFFFF',
+      dark: '#E6D3B3',
     },
     error: {
       main: '#F44336',
@@ -25,12 +25,12 @@ export const theme = createTheme({
       main: '#66BB6A',
     },
     background: {
-      default: '#F7F7F7',
+      default: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#2C3E50',
-      secondary: '#7F8C8D',
+      primary: '#22223B',
+      secondary: '#4A5568',
     },
   },
   typography: {
@@ -91,21 +91,25 @@ export const theme = createTheme({
           fontWeight: 500,
           boxShadow: 'none',
           '&:hover': {
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
           },
         },
         containedPrimary: {
           '&:not([data-custom-bg])': {
-            background: 'linear-gradient(45deg, #FF6B6B 30%, #FF9999 90%)',
+            background: 'linear-gradient(90deg, #FFF7E6 0%, #B2996E 100%)',
+            color: '#8C7B4F',
             '&:hover': {
-              background: 'linear-gradient(45deg, #CC5555 30%, #FF6B6B 90%)',
+              background: 'linear-gradient(90deg, #E6D3B3 0%, #B2996E 100%)',
+              color: '#FFFFFF',
             },
           },
         },
         containedSecondary: {
-          background: 'linear-gradient(45deg, #4ECDC4 30%, #7EDDD6 90%)',
+          background: 'linear-gradient(90deg, #FFFFFF 0%, #E6D3B3 100%)',
+          color: '#B2996E',
           '&:hover': {
-            background: 'linear-gradient(45deg, #3BA99C 30%, #4ECDC4 90%)',
+            background: 'linear-gradient(90deg, #E6D3B3 0%, #B2996E 100%)',
+            color: '#FFFFFF',
           },
         },
       },
@@ -114,9 +118,9 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 16,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
           '&:hover': {
-            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.10)',
           },
         },
       },

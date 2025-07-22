@@ -7,11 +7,24 @@ import {
   Stack,
   useTheme,
 } from '@mui/material';
-import { RocketLaunch } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { GoogleLogo } from './GoogleLogo';
 
 export const CTA: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const { signInWithProvider } = useAuth();
+
+  const handleGoogleSignUp = async () => {
+    try {
+      await signInWithProvider('google');
+      // Redirect to party page after successful authentication
+      navigate('/party');
+    } catch (error) {
+      console.error('Google sign up failed:', error);
+    }
+  };
 
   return (
     <Box
@@ -40,29 +53,24 @@ export const CTA: React.FC = () => {
             alignItems="center"
           >
             <Button
-              component={Link}
-              to="/login"
+              onClick={handleGoogleSignUp}
               variant="contained"
               size="large"
-              startIcon={<RocketLaunch />}
+              startIcon={<GoogleLogo size={20} />}
               sx={{
-                bgcolor: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
+                bgcolor: 'black',
                 color: 'white',
                 px: 6,
                 py: 2,
                 fontSize: '1.2rem',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.3)',
+                  bgcolor: 'rgba(0, 0, 0, 0.8)',
                 },
               }}
             >
-              Start Hosting
+              Sign Up with Google
             </Button>
-            
-            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-              No credit card required • Free forever
-            </Typography>
+
           </Stack>
         </Stack>
       </Container>

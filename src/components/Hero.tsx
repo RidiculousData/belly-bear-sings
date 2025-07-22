@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -8,13 +8,79 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { RocketLaunch } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { Celebration } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 import { Navigation } from './Navigation';
+import { partyService } from '@bellybearsings/firebase-config';
 
 export const Hero: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
+  const { user, loading, signInWithProvider } = useAuth();
+
+  // New state to track if party creation is pending after sign-in
+  const [pendingPartyCreation, setPendingPartyCreation] = useState(false);
+
+  const handlePartyClick = async () => {
+    if (loading) return;
+    if (user && user.uid) {
+      // Create a new party and redirect to /party/:partyCode
+      try {
+        const party = await partyService.createParty(
+          user.uid,
+          'Karaoke Party',
+          {
+            maxParticipants: 50,
+            allowDuplicates: true,
+            requireApproval: false,
+            boostsPerPerson: 3,
+            maxSongsPerPerson: 10,
+          }
+        );
+        navigate(`/party/${party.code}`);
+      } catch (err) {
+        console.error('Error creating party:', err);
+      }
+    } else {
+      try {
+        setPendingPartyCreation(true);
+        await signInWithProvider('google');
+        // No reload! Wait for user to be set, then useEffect will handle party creation
+      } catch (error) {
+        setPendingPartyCreation(false);
+        console.error('Google sign in failed:', error);
+      }
+    }
+  };
+
+  // Effect to create party after sign-in if needed
+  useEffect(() => {
+    if (pendingPartyCreation && user && user.uid && !loading) {
+      // Create party and navigate
+      (async () => {
+        try {
+          const party = await partyService.createParty(
+            user.uid,
+            'Karaoke Party',
+            {
+              maxParticipants: 50,
+              allowDuplicates: true,
+              requireApproval: false,
+              boostsPerPerson: 3,
+              maxSongsPerPerson: 10,
+            }
+          );
+          setPendingPartyCreation(false);
+          navigate(`/party/${party.code}`);
+        } catch (err) {
+          setPendingPartyCreation(false);
+          console.error('Error creating party after sign-in:', err);
+        }
+      })();
+    }
+  }, [pendingPartyCreation, user, loading, navigate]);
 
   return (
     <Box
@@ -69,54 +135,26 @@ export const Hero: React.FC = () => {
               sx={{ mb: 4 }}
             >
               <Button
-                component={Link}
-                to="/signup"
+                onClick={handlePartyClick}
                 variant="contained"
                 size="large"
-                startIcon={<RocketLaunch />}
+                startIcon={<Celebration />}
                 sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
+                  bgcolor: 'black',
                   color: 'white',
                   px: 4,
                   py: 1.5,
                   fontSize: '1.1rem',
                   '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    bgcolor: 'rgba(0, 0, 0, 0.8)',
                   },
                 }}
               >
-                Let's Get This Party Started!
+                Let's Party!
               </Button>
             </Stack>
-            
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                mb: 4, 
-                opacity: 0.9, 
-                textAlign: { xs: 'center', md: 'left' }
-              }}
-            >
-              Already have an account?{' '}
-              <Typography
-                component={Link}
-                to="/login"
-                sx={{
-                  color: 'white',
-                  textDecoration: 'underline',
-                  fontWeight: 'bold',
-                  '&:hover': {
-                    opacity: 0.8,
-                  },
-                }}
-              >
-                Login
-              </Typography>
-            </Typography>
-            
             <Typography variant="body2" sx={{ opacity: 0.8 }}>
-              ✨ Free forever • 🎵 Unlimited songs • 📱 Works on any device
+              ✨ Guests choose songs • 🎵 Works with your YouTube account • 📱 Any device
             </Typography>
           </Box>
           

@@ -40,7 +40,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = authService.subscribeToAuthState(async (firebaseUser) => {
-      console.log('Auth state changed:', firebaseUser?.email, firebaseUser?.displayName); // Log auth state
       setUser(firebaseUser);
       
       if (firebaseUser) {
@@ -49,7 +48,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           
           if (userDoc.exists()) {
-            console.log('User document found:', userDoc.data()); // Log user document data
             const data = userDoc.data();
             const profile: AppUser = {
               userId: firebaseUser.uid,
@@ -62,7 +60,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             };
             setUserProfile(profile);
           } else {
-            console.log('User document does not exist, creating basic profile.'); // Log if document doesn't exist
             // Create a user document in Firestore and a basic profile
             // Use the email prefix as firstName but in title case
             const emailPrefix = firebaseUser.email?.split('@')[0] || 'Unknown';
@@ -95,11 +92,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
             await setDoc(doc(db, 'users', firebaseUser.uid), userDocData);
             
-            console.log('Created user document:', profile); // Log created profile
             setUserProfile(profile);
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
           setUserProfile(null);
         }
       } else {

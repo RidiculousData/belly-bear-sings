@@ -188,6 +188,7 @@ export const ParticipantPage: React.FC = () => {
         sx={{ 
           py: 4, 
           minHeight: '100vh',
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',

@@ -153,7 +153,7 @@ export const ProfilePage: React.FC = () => {
   return (
     <>
       <Navigation />
-      <Box sx={{ pt: 10, pb: 4, bgcolor: 'background.default', minHeight: '100vh' }}>
+      <Box sx={{ pt: 10, pb: 4, bgcolor: 'background.default', minHeight: '100vh', background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)' }}>
         <Container maxWidth="md">
           <Stack spacing={4}>
             {/* Header */}

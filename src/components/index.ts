@@ -3,6 +3,7 @@ export { Navigation } from './Navigation';
 export { BrandLogo } from './BrandLogo';
 export { UserMenu } from './UserMenu';
 export { AuthButtons } from './AuthButtons';
+export { GoogleLogo } from './GoogleLogo';
 
 // Other components
 export { CTA } from './CTA';

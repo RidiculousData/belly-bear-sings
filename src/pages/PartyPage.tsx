@@ -18,9 +18,11 @@ import { PartyInfo } from '../components/PartyInfo';
 import { usePartyPlayer } from '../hooks/usePartyPlayer';
 import { Song, Participant } from '../types/party';
 import { partyService, firestoreService } from '@bellybearsings/firebase-config';
+import { useParams } from 'react-router-dom';
 
 export const PartyPage: React.FC = () => {
   const theme = useTheme();
+  const { partyCode } = useParams<{ partyCode: string }>();
   
   const [queue, setQueue] = useState<Song[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -31,7 +33,6 @@ export const PartyPage: React.FC = () => {
     currentSong,
     currentSongIndex,
     isPlaying,
-    partyCode,
     partyId,
     showCopiedSnackbar,
     canSkipNext,
@@ -140,9 +141,9 @@ export const PartyPage: React.FC = () => {
     return (
       <Box
         sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
           minHeight: '100vh',
-          color: 'white',
+          color: 'primary.main',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -163,9 +164,9 @@ export const PartyPage: React.FC = () => {
     return (
       <Box
         sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
           minHeight: '100vh',
-          color: 'white',
+          color: 'primary.main',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -183,9 +184,9 @@ export const PartyPage: React.FC = () => {
   return (
     <Box
       sx={{
-        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+        background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
         minHeight: '100vh',
-        color: 'white',
+        color: 'primary.main',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -224,7 +225,7 @@ export const PartyPage: React.FC = () => {
           {/* Party Info Section */}
           <Grid item xs={12} lg={2.5} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <PartyInfo
-              partyCode={partyCode}
+              partyCode={partyCode || ''}
               partyId={partyId}
               participants={participants}
               onCopyPartyCode={handleCopyPartyCode}
@@ -232,7 +233,6 @@ export const PartyPage: React.FC = () => {
           </Grid>
         </Grid>
       </Container>
-
       {/* Snackbar for copy notification */}
       <Snackbar
         open={showCopiedSnackbar}
