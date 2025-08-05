@@ -16,7 +16,7 @@ export const usePartyPlayer = (queue: Song[], _participants: Participant[]) => {
       return party.code;
     }
     
-    // Generate new party code
+    // Generate new party code - 8 characters in 2 segments of 4
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
     for (let i = 0; i < 8; i++) {

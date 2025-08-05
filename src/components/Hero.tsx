@@ -8,7 +8,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Celebration } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigation } from './Navigation';
@@ -18,14 +18,37 @@ export const Hero: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading, signInWithProvider } = useAuth();
+
+  // Get returnTo parameter from URL
+  const searchParams = new URLSearchParams(location.search);
+  const returnTo = searchParams.get('returnTo');
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Hero - URL parameters:', {
+      fullUrl: window.location.href,
+      search: location.search,
+      returnTo: returnTo,
+      searchParams: Object.fromEntries(searchParams.entries())
+    });
+  }, [location.search, returnTo, searchParams]);
 
   // New state to track if party creation is pending after sign-in
   const [pendingPartyCreation, setPendingPartyCreation] = useState(false);
+  const [pendingReturnTo, setPendingReturnTo] = useState<string | null>(returnTo);
 
   const handlePartyClick = async () => {
     if (loading) return;
     if (user && user.uid) {
+      // If there's a returnTo URL, navigate there instead of creating a party
+      if (pendingReturnTo) {
+        console.log('Hero - Navigating to returnTo URL:', pendingReturnTo);
+        navigate(pendingReturnTo);
+        return;
+      }
+      
       // Create a new party and redirect to /party/:partyCode
       try {
         const party = await partyService.createParty(
@@ -45,20 +68,32 @@ export const Hero: React.FC = () => {
       }
     } else {
       try {
+        console.log('Hero - Starting sign in process, returnTo:', returnTo);
         setPendingPartyCreation(true);
+        setPendingReturnTo(returnTo);
         await signInWithProvider('google');
-        // No reload! Wait for user to be set, then useEffect will handle party creation
+        // No reload! Wait for user to be set, then useEffect will handle navigation
       } catch (error) {
         setPendingPartyCreation(false);
+        setPendingReturnTo(null);
         console.error('Google sign in failed:', error);
       }
     }
   };
 
-  // Effect to create party after sign-in if needed
+  // Effect to handle navigation after sign-in if needed
   useEffect(() => {
     if (pendingPartyCreation && user && user.uid && !loading) {
-      // Create party and navigate
+      // If there's a returnTo URL, navigate there
+      if (pendingReturnTo) {
+        console.log('Hero - Post sign-in, navigating to returnTo URL:', pendingReturnTo);
+        setPendingPartyCreation(false);
+        setPendingReturnTo(null);
+        navigate(pendingReturnTo);
+        return;
+      }
+      
+      // Otherwise create party and navigate
       (async () => {
         try {
           const party = await partyService.createParty(
@@ -80,7 +115,23 @@ export const Hero: React.FC = () => {
         }
       })();
     }
-  }, [pendingPartyCreation, user, loading, navigate]);
+  }, [pendingPartyCreation, user, loading, navigate, pendingReturnTo]);
+
+  // Update button text based on context
+  const getButtonText = () => {
+    if (pendingReturnTo) {
+      return 'Sign In to Join Party';
+    }
+    return 'Let\'s Party!';
+  };
+
+  // Debug what we're showing
+  console.log('Hero - Rendering with:', {
+    returnTo,
+    pendingReturnTo,
+    buttonText: getButtonText(),
+    isParticipantFlow: !!pendingReturnTo
+  });
 
   return (
     <Box
@@ -115,7 +166,7 @@ export const Hero: React.FC = () => {
                 mb: 2,
               }}
             >
-              The Ultimate Karaoke Party Experience
+              {pendingReturnTo ? 'Join the Party!' : 'The Ultimate Karaoke Party Experience'}
             </Typography>
             <Typography
               variant="h5"
@@ -125,8 +176,10 @@ export const Hero: React.FC = () => {
                 fontSize: { xs: '1.1rem', md: '1.3rem' },
               }}
             >
-              Host live karaoke parties with real-time song queues, YouTube integration, 
-              and seamless guest participation. No downloads required!
+              {pendingReturnTo 
+                ? 'Sign in with your Google account to join the karaoke party!'
+                : 'Host live karaoke parties with real-time song queues, YouTube integration, and seamless guest participation. No downloads required!'
+              }
             </Typography>
             
             <Stack
@@ -150,7 +203,7 @@ export const Hero: React.FC = () => {
                   },
                 }}
               >
-                Let's Party!
+                {getButtonText()}
               </Button>
             </Stack>
             <Typography variant="body2" sx={{ opacity: 0.8 }}>

@@ -1,42 +1,81 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
   Typography,
-  TextField,
-  Button,
-  Card,
-  CardContent,
-  Stack,
   CircularProgress,
-  Alert
+  Alert,
+  Button,
 } from '@mui/material';
-import { MusicNote, Person, Group } from '@mui/icons-material';
-import { firestoreService, functionsService } from '@bellybearsings/firebase-config';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { firestoreService, functionsService, authService } from '@bellybearsings/firebase-config';
 import { ParticipantDashboard } from '../components/ParticipantDashboard';
+import { GoogleIdentityDialog } from '../components/GoogleIdentityDialog';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Main participant page that handles party joining and dashboard display
- * Supports both mobile and desktop layouts with responsive design
+ * Requires Google sign-in authentication
+ * Shows identity confirmation dialog before joining
  */
 export const ParticipantPage: React.FC = () => {
   const { partyId } = useParams<{ partyId: string }>();
-  const auth = getAuth();
+  const { userProfile, loading: authLoading, signOut, signInWithProvider } = useAuth();
+  const location = useLocation();
   
   const [isJoining, setIsJoining] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [joinError, setJoinError] = useState<string>('');
   const [hasJoined, setHasJoined] = useState(false);
-  const [displayName, setDisplayName] = useState('');
+  const [showIdentityDialog, setShowIdentityDialog] = useState(false);
   const [partyInfo, setPartyInfo] = useState<{ hostName: string; partyName: string } | null>(null);
-//   const [userId, setUserId] = useState<string>('');
+  const [authCheckComplete, setAuthCheckComplete] = useState(false);
+  const [showSafariAuthPrompt, setShowSafariAuthPrompt] = useState(false);
+
+  // Detect Safari
+  const isSafari = typeof window !== 'undefined' && 
+    /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('ParticipantPage - Auth state:', {
+      userProfile: userProfile ? { 
+        userId: userProfile.userId, 
+        displayName: userProfile.displayName,
+        email: userProfile.email 
+      } : null,
+      authLoading,
+      authCheckComplete,
+      isSafari,
+      userAgent: navigator.userAgent
+    });
+  }, [userProfile, authLoading, authCheckComplete, isSafari]);
 
   // Check if already joined on mount
   useEffect(() => {
     checkExistingSession();
   }, [partyId]);
+
+  // Wait for auth to be fully loaded before making decisions
+  useEffect(() => {
+    if (!authLoading) {
+      setAuthCheckComplete(true);
+    }
+  }, [authLoading]);
+
+  // Show identity dialog if user is authenticated and not already joined
+  useEffect(() => {
+    if (authCheckComplete && userProfile && !hasJoined && !isLoading) {
+      console.log('Showing identity dialog for user:', userProfile.displayName);
+      setShowIdentityDialog(true);
+    } else if (authCheckComplete && !userProfile && !isLoading) {
+      console.log('No user profile found, redirecting to auth');
+      // For Safari, show a special prompt if no auth is detected
+      if (isSafari) {
+        setShowSafariAuthPrompt(true);
+      }
+    }
+  }, [userProfile, hasJoined, isLoading, authCheckComplete, isSafari]);
 
   /**
    * Check if user has already joined this party
@@ -52,10 +91,11 @@ export const ParticipantPage: React.FC = () => {
       const storedSession = localStorage.getItem(`party-${partyId}-session`);
       if (storedSession) {
         const session = JSON.parse(storedSession);
+        console.log('Found existing session:', session);
         setHasJoined(true);
-        setDisplayName(session.displayName);
-        // setUserId(session.userId);
         await loadPartyInfo();
+      } else {
+        console.log('No existing session found');
       }
     } catch (error) {
       console.error('Error checking session:', error);
@@ -86,34 +126,27 @@ export const ParticipantPage: React.FC = () => {
   };
 
   /**
-   * Handle party joining with anonymous authentication
+   * Handle identity confirmation and join party
    */
-  const handleJoinParty = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!partyId || !displayName.trim()) {
-      setJoinError('Please enter your name');
+  const handleConfirmIdentity = async () => {
+    if (!partyId || !userProfile) {
       return;
     }
 
+    setShowIdentityDialog(false);
     setIsJoining(true);
     setJoinError('');
 
     try {
-      // Sign in anonymously first
-      const userCredential = await signInAnonymously(auth);
-      const anonymousUserId = userCredential.user.uid;
-      // setUserId(anonymousUserId);
-
       // Check if party exists in localStorage first (for development)
       const localParty = localStorage.getItem(`party-${partyId}`);
       if (localParty) {
         // Party found in localStorage
-        // const partyData = JSON.parse(localParty);
         
         // Store session in localStorage
         localStorage.setItem(`party-${partyId}-session`, JSON.stringify({
-          userId: anonymousUserId,
-          displayName: displayName.trim(),
+          userId: userProfile.userId,
+          displayName: userProfile.displayName,
           partyId,
           joinedAt: new Date().toISOString(),
         }));
@@ -126,15 +159,15 @@ export const ParticipantPage: React.FC = () => {
         
         setHasJoined(true);
       } else {
-        // Try Firebase function
+        // Try Firebase function with error handling for CORS
         try {
-          const joinResult = await functionsService.joinParty(partyId, displayName.trim());
+          const joinResult = await functionsService.joinParty(partyId, userProfile.displayName);
           
           if (joinResult.success) {
             // Store session in localStorage
             localStorage.setItem(`party-${partyId}-session`, JSON.stringify({
-              userId: anonymousUserId,
-              displayName: displayName.trim(),
+              userId: userProfile.userId,
+              displayName: userProfile.displayName,
               partyId,
               joinedAt: new Date().toISOString(),
             }));
@@ -147,8 +180,42 @@ export const ParticipantPage: React.FC = () => {
             throw new Error('Failed to join party');
           }
         } catch (firebaseError: any) {
-          // If Firebase fails, show appropriate error
-          if (firebaseError.message?.includes('not found')) {
+          console.error('Firebase join error:', firebaseError);
+          
+          // Handle CORS or network errors gracefully
+          if (firebaseError.message?.includes('CORS') || 
+              firebaseError.message?.includes('fetch') ||
+              firebaseError.message?.includes('network')) {
+            // Fallback: Try to join using direct Firestore operations
+            try {
+              console.log('Attempting fallback join method...');
+              
+              // Add user to party guests directly
+              await firestoreService.addPartyGuest(partyId, userProfile.userId, {
+                displayName: userProfile.displayName,
+                boostsRemaining: 3,
+                isAnonymous: false,
+                isHost: false,
+              });
+              
+              // Store session in localStorage
+              localStorage.setItem(`party-${partyId}-session`, JSON.stringify({
+                userId: userProfile.userId,
+                displayName: userProfile.displayName,
+                partyId,
+                joinedAt: new Date().toISOString(),
+              }));
+
+              // Load party info
+              await loadPartyInfo();
+              
+              setHasJoined(true);
+              console.log('Successfully joined using fallback method');
+            } catch (fallbackError: any) {
+              console.error('Fallback join error:', fallbackError);
+              setJoinError('Unable to join party. Please try again later.');
+            }
+          } else if (firebaseError.message?.includes('not found')) {
             setJoinError('Party not found. Please check the link and try again.');
           } else {
             setJoinError(firebaseError.message || 'Failed to join party. Please try again.');
@@ -163,13 +230,99 @@ export const ParticipantPage: React.FC = () => {
     }
   };
 
-  // Show loading while checking party status
-  if (isLoading) {
+  /**
+   * Handle switching to a different Google account
+   */
+  const handleSwitchAccount = async () => {
+    setShowIdentityDialog(false);
+    try {
+      await signOut();
+      // Redirect to home page with return URL parameter
+      const returnUrl = encodeURIComponent(`/participant/${partyId}`);
+      window.location.href = `/?returnTo=${returnUrl}`;
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setJoinError('Failed to switch account. Please try again.');
+    }
+  };
+
+  /**
+   * Handle canceling the join process
+   */
+  const handleCancel = () => {
+    setShowIdentityDialog(false);
+    // Redirect to home page
+    window.location.href = '/';
+  };
+
+  /**
+   * Handle Safari-specific sign in
+   */
+  const handleSafariSignIn = async () => {
+    try {
+      await signInWithProvider('google');
+    } catch (error) {
+      console.error('Safari sign in failed:', error);
+      setJoinError('Failed to sign in. Please try again.');
+    }
+  };
+
+  // Show Safari-specific auth prompt
+  if (showSafariAuthPrompt) {
     return (
-      <Container maxWidth="sm" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
-        <CircularProgress />
+      <Container maxWidth="sm" sx={{ py: 4 }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Safari Authentication
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Safari sometimes has issues detecting existing Google sign-in. 
+            Please sign in again to join the party.
+          </Typography>
+          <Button 
+            variant="contained" 
+            size="large"
+            onClick={handleSafariSignIn}
+            sx={{ mr: 2 }}
+          >
+            Sign In with Google
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={() => window.location.href = '/'}
+          >
+            Go to Home Page
+          </Button>
+        </Box>
       </Container>
     );
+  }
+
+  // Show loading while checking authentication and party status
+  if (authLoading || isLoading || isJoining) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={60} sx={{ mb: 2 }} />
+          <Typography variant="h6" color="text.secondary">
+            {isJoining ? 'Joining party...' : 'Loading...'}
+          </Typography>
+          {authLoading && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Checking authentication...
+            </Typography>
+          )}
+        </Box>
+      </Container>
+    );
+  }
+
+  // Redirect to auth if not signed in (only after auth check is complete)
+  if (authCheckComplete && !userProfile && !showSafariAuthPrompt) {
+    console.log('Redirecting to auth with returnTo parameter');
+    // Redirect to home page with return URL parameter
+    const returnUrl = encodeURIComponent(`/participant/${partyId}`);
+    return <Navigate to={`/?returnTo=${returnUrl}`} replace />;
   }
 
   if (!partyId) {
@@ -180,127 +333,32 @@ export const ParticipantPage: React.FC = () => {
     );
   }
 
-  // Show landing page if not joined
-  if (!hasJoined) {
+  // Show error if joining failed
+  if (joinError) {
     return (
-      <Container 
-        maxWidth="sm" 
-        sx={{ 
-          py: 4, 
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-        }}
-      >
-        <Stack spacing={4}>
-          {/* Header */}
-          <Box textAlign="center">
-            <MusicNote 
-              sx={{ 
-                fontSize: 64, 
-                color: 'primary.main',
-                mb: 2,
-              }} 
-            />
-            <Typography 
-              variant="h3" 
-              component="h1" 
-              gutterBottom
-              sx={{ 
-                fontWeight: 'bold',
-                color: 'text.primary',
-              }}
-            >
-              Welcome to the Party!
-            </Typography>
-            <Typography 
-              variant="h6" 
-              color="text.secondary"
-              sx={{ mb: 1 }}
-            >
-              Join the Karaoke Fun
-            </Typography>
-            <Typography 
-              variant="body1" 
-              color="text.secondary"
-            >
-              Please tell us who you are
-            </Typography>
-          </Box>
-
-          {/* Join Form */}
-          <Card 
-            sx={{ 
-              borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <CardContent sx={{ p: 4 }}>
-              <form onSubmit={handleJoinParty}>
-                <Stack spacing={3}>
-                  {joinError && (
-                    <Alert severity="error" sx={{ borderRadius: 2 }}>
-                      {joinError}
-                    </Alert>
-                  )}
-
-                  <TextField
-                    fullWidth
-                    label="Your Name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Enter your name"
-                    variant="outlined"
-                    size="medium"
-                    autoFocus
-                    disabled={isJoining}
-                    InputProps={{
-                      startAdornment: <Person sx={{ mr: 1, color: 'text.secondary' }} />,
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        fontSize: '1.1rem',
-                      },
-                    }}
-                  />
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    size="large"
-                    disabled={!displayName.trim() || isJoining}
-                    startIcon={isJoining ? <CircularProgress size={20} /> : <Group />}
-                    sx={{
-                      borderRadius: 2,
-                      py: 1.5,
-                      fontSize: '1.1rem',
-                      fontWeight: 'bold',
-                      textTransform: 'none',
-                    }}
-                  >
-                    {isJoining ? 'Joining Party...' : 'Join Party'}
-                  </Button>
-                </Stack>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Party Info */}
-          <Box textAlign="center">
-            <Typography variant="caption" color="text.secondary">
-              Party Code: {partyId}
-            </Typography>
-          </Box>
-        </Stack>
+      <Container maxWidth="sm" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {joinError}
+        </Alert>
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+          <a href="/" style={{ color: 'inherit' }}>Return to home page</a>
+        </Typography>
       </Container>
     );
   }
 
-  // Show main dashboard after joining
-  return <ParticipantDashboard partyId={partyId} partyInfo={partyInfo} />;
+  return (
+    <>
+      {/* Google Identity Confirmation Dialog */}
+      <GoogleIdentityDialog
+        open={showIdentityDialog}
+        onConfirm={handleConfirmIdentity}
+        onCancel={handleCancel}
+        onSwitchAccount={handleSwitchAccount}
+      />
+      
+      {/* Show main dashboard after joining */}
+      {hasJoined && <ParticipantDashboard partyId={partyId} partyInfo={partyInfo} />}
+    </>
+  );
 }; 

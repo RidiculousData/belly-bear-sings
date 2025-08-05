@@ -24,10 +24,7 @@ export const useAuth = () => {
   return context;
 };
 
-// Helper function to convert string to title case
-const toTitleCase = (str: string): string => {
-  return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-};
+
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -39,38 +36,85 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('AuthProvider - Setting up auth state listener');
+    
     const unsubscribe = authService.subscribeToAuthState(async (firebaseUser) => {
+      console.log('AuthProvider - Auth state changed:', {
+        user: firebaseUser ? {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          providerData: firebaseUser.providerData.map(p => p.providerId)
+        } : null,
+        timestamp: new Date().toISOString()
+      });
+      
       setUser(firebaseUser);
       
       if (firebaseUser) {
         try {
+          console.log('AuthProvider - Fetching user profile for:', firebaseUser.uid);
+          
           // Fetch user profile from Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           
           if (userDoc.exists()) {
             const data = userDoc.data();
-            const profile: AppUser = {
-              userId: firebaseUser.uid,
-              displayName: data.displayName || firebaseUser.displayName || 'Unknown User',
-              email: data.email || firebaseUser.email || undefined,
-              photoURL: data.photoURL || firebaseUser.photoURL || undefined,
-              firstName: data.firstName,
-              lastName: data.lastName,
-              createdAt: data.createdAt?.toDate() || new Date(),
-            };
-            setUserProfile(profile);
-          } else {
-            // Create a user document in Firestore and a basic profile
-            // Use the email prefix as firstName but in title case
-            const emailPrefix = firebaseUser.email?.split('@')[0] || 'Unknown';
-            const firstName = toTitleCase(emailPrefix);
+            const displayName = data.displayName || firebaseUser.displayName || 'Unknown User';
+            
+            // Handle firstName extraction - if no firstName in data, extract from displayName
+            let firstName = data.firstName;
+            let lastName = data.lastName;
+            
+            if (!firstName) {
+              if (displayName.includes(' ')) {
+                // If displayName has spaces, split it
+                const nameParts = displayName.split(' ');
+                firstName = nameParts[0];
+                lastName = nameParts.slice(1).join(' ');
+              } else {
+                // If displayName is a single word (like email handle), use it as firstName
+                firstName = displayName;
+                lastName = '';
+              }
+            }
             
             const profile: AppUser = {
               userId: firebaseUser.uid,
-              displayName: firstName,
+              displayName: displayName,
+              email: data.email || firebaseUser.email || undefined,
+              photoURL: data.photoURL || firebaseUser.photoURL || undefined,
+              firstName: firstName,
+              lastName: lastName,
+              createdAt: data.createdAt?.toDate() || new Date(),
+            };
+            setUserProfile(profile);
+            console.log('AuthProvider - Set existing user profile:', profile.displayName);
+          } else {
+            console.log('AuthProvider - Creating new user profile for:', firebaseUser.uid);
+            
+            // Create a user document in Firestore and a basic profile
+            // Use Firebase display name if available, otherwise use email prefix
+            const displayName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Unknown';
+            
+            // Handle firstName extraction
+            let firstName = displayName;
+            let lastName = '';
+            
+            if (displayName.includes(' ')) {
+              // If displayName has spaces, split it
+              const nameParts = displayName.split(' ');
+              firstName = nameParts[0];
+              lastName = nameParts.slice(1).join(' ');
+            }
+            
+            const profile: AppUser = {
+              userId: firebaseUser.uid,
+              displayName: displayName,
               email: firebaseUser.email || undefined,
               photoURL: firebaseUser.photoURL || undefined,
               firstName: firstName,
+              lastName: lastName,
               createdAt: new Date(),
             };
             
@@ -79,6 +123,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               userId: firebaseUser.uid,
               displayName: profile.displayName,
               firstName: profile.firstName,
+              lastName: profile.lastName,
               createdAt: profile.createdAt,
             };
             
@@ -93,11 +138,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             await setDoc(doc(db, 'users', firebaseUser.uid), userDocData);
             
             setUserProfile(profile);
+            console.log('AuthProvider - Created new user profile:', profile.displayName);
           }
         } catch (error) {
+          console.error('AuthProvider - Error handling user profile:', error);
           setUserProfile(null);
         }
       } else {
+        console.log('AuthProvider - No user, clearing profile');
         setUserProfile(null);
       }
       

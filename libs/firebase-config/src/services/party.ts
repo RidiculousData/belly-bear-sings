@@ -110,7 +110,21 @@ export const endParty = async (partyId: string) => {
   });
 };
 
-export const joinParty = async (partyCode: string, userId: string) => {
+export const getPartyByCode = async (partyCode: string) => {
+  const q = query(collection(db, 'parties'), where('code', '==', partyCode));
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) {
+    return null;
+  }
+  
+  const partyDoc = snapshot.docs[0];
+  const partyData = partyDoc.data() as Party;
+  
+  return { ...partyData, id: partyDoc.id };
+};
+
+export const joinParty = async (partyCode: string, userId: string, displayName?: string) => {
   const q = query(collection(db, 'parties'), where('code', '==', partyCode));
   const snapshot = await getDocs(q);
   
@@ -125,9 +139,22 @@ export const joinParty = async (partyCode: string, userId: string) => {
     throw new Error('Party is full');
   }
   
+  // Add to participants array
   await updateDoc(partyDoc.ref, {
     participants: arrayUnion(userId),
   });
+  
+  // Also create a guest record if displayName is provided
+  if (displayName) {
+    await setDoc(doc(db, 'parties', partyDoc.id, 'partyGuests', userId), {
+      guestId: userId,
+      displayName: displayName,
+      boostsRemaining: partyData.settings.boostsPerPerson,
+      isAnonymous: false,
+      isHost: false,
+      joinedAt: serverTimestamp(),
+    });
+  }
   
   return { ...partyData, id: partyDoc.id };
 };
@@ -286,8 +313,9 @@ export const subscribeToPartyParticipants = (
 // Helper functions
 const generatePartyCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = 'PARTY-';
-  for (let i = 0; i < 6; i++) {
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    if (i === 4) code += '-';
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;

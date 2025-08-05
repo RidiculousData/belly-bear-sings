@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Container,
@@ -15,7 +15,6 @@ import { Navigation } from '../components/Navigation';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { SongQueue } from '../components/SongQueue';
 import { PartyInfo } from '../components/PartyInfo';
-import { usePartyPlayer } from '../hooks/usePartyPlayer';
 import { Song, Participant } from '../types/party';
 import { partyService, firestoreService } from '@bellybearsings/firebase-config';
 import { useParams } from 'react-router-dom';
@@ -28,29 +27,74 @@ export const PartyPage: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [partyId, setPartyId] = useState<string>('');
+  const [showCopiedSnackbar, setShowCopiedSnackbar] = useState(false);
   
-  const {
-    currentSong,
-    currentSongIndex,
-    isPlaying,
-    partyId,
-    showCopiedSnackbar,
-    canSkipNext,
-    canSkipPrevious,
-    handlePlayerReady,
-    handlePlayerStateChange,
-    handlePlayPause,
-    handleSkipNext,
-    handleSkipPrevious,
-    handleSeek,
-    handleVideoEnd,
-    handleCopyPartyCode,
-    setShowCopiedSnackbar,
-  } = usePartyPlayer(queue, participants);
+  // Player state
+  const [currentSongIndex, setCurrentSongIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef<any>(null);
+  
+  // Get current song
+  const currentSong = queue.length > 0 ? queue[currentSongIndex] : null;
+  
+  // Player control functions
+  const handlePlayerReady = (event: any) => {
+    playerRef.current = event.target;
+  };
 
-  // Subscribe to real-time queue updates
+  const handlePlayerStateChange = (event: any) => {
+    setIsPlaying(event.data === 1); // 1 = playing
+  };
+
+  const handlePlayPause = () => {
+    if (playerRef.current && currentSong) {
+      if (isPlaying) {
+        playerRef.current.pauseVideo();
+      } else {
+        playerRef.current.playVideo();
+      }
+    }
+  };
+
+  const handleSkipNext = () => {
+    if (currentSongIndex < queue.length - 1) {
+      setCurrentSongIndex(currentSongIndex + 1);
+    }
+  };
+
+  const handleSkipPrevious = () => {
+    if (currentSongIndex > 0) {
+      setCurrentSongIndex(currentSongIndex - 1);
+    }
+  };
+
+  const handleSeek = (seconds: number) => {
+    if (playerRef.current && currentSong) {
+      const currentTime = playerRef.current.getCurrentTime();
+      playerRef.current.seekTo(currentTime + seconds);
+    }
+  };
+
+  const handleVideoEnd = () => {
+    handleSkipNext();
+  };
+
+  const handleCopyPartyCode = () => {
+    if (partyCode) {
+      const participantUrl = `${window.location.origin}/participant/${partyCode}`;
+      navigator.clipboard.writeText(participantUrl);
+      setShowCopiedSnackbar(true);
+    }
+  };
+
+  // Skip controls
+  const canSkipNext = currentSongIndex < queue.length - 1;
+  const canSkipPrevious = currentSongIndex > 0;
+
+  // Load party and subscribe to updates
   useEffect(() => {
-    if (!partyId) return;
+    if (!partyCode) return;
 
     setLoading(true);
     setError('');
@@ -58,83 +102,82 @@ export const PartyPage: React.FC = () => {
     let queueUnsubscribe: (() => void) | undefined;
     let participantsUnsubscribe: (() => void) | undefined;
 
-    try {
-      // Subscribe to queue updates
-      queueUnsubscribe = partyService.subscribeToPartyQueue(
-        partyId,
-        (songs: any[]) => {
-          // Transform Firebase songs to our Song type
-          const transformedSongs: Song[] = songs.map(song => ({
-            id: song.id,
-            videoId: song.videoId,
-            title: song.title,
-            artist: song.artist,
-            requestedBy: song.requestedBy,
-            boosted: song.boosted,
-            boostCount: song.boostCount,
-            praises: song.praises || [],
-          }));
-          setQueue(transformedSongs);
+    const loadParty = async () => {
+      try {
+        // First, try to find the party by code in Firestore
+        const party = await partyService.getPartyByCode(partyCode);
+        if (party) {
+          setPartyId(party.id);
+          
+          // Subscribe to queue updates
+          queueUnsubscribe = partyService.subscribeToPartyQueue(
+            party.id,
+            (songs: any[]) => {
+              // Transform Firebase songs to our Song type
+              const transformedSongs: Song[] = songs.map(song => ({
+                id: song.id,
+                videoId: song.videoId,
+                title: song.title,
+                artist: song.artist,
+                requestedBy: song.requestedBy,
+                boosted: song.boosted,
+                boostCount: song.boostCount,
+                praises: song.praises || [],
+              }));
+              setQueue(transformedSongs);
+              setLoading(false);
+            }
+          );
+
+          // Subscribe to party guests updates (more reliable than participants array)
+          participantsUnsubscribe = firestoreService.subscribeToPartyGuests(
+            party.id,
+            (guests: any[]) => {
+              const participantDetails = guests.map(guest => ({
+                id: guest.guestId,
+                name: guest.displayName,
+                initials: guest.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+                joinedAt: guest.joinedAt,
+              }));
+              setParticipants(participantDetails);
+            }
+          );
+        } else {
+          setError('Party not found. Please check the party code.');
           setLoading(false);
         }
-      );
+      } catch (err) {
+        console.error('Error loading party:', err);
+        setError('Failed to load party data. Please try again.');
+        setLoading(false);
+      }
+    };
 
-      // Subscribe to participants updates
-      participantsUnsubscribe = partyService.subscribeToPartyParticipants(
-        partyId,
-        async (participantIds: string[]) => {
-          try {
-            // Get participant details from Firebase
-            const participantDetails = await Promise.all(
-              participantIds.map(async (id) => {
-                // Try to get user info from party guests
-                const guests = await firestoreService.getPartyGuests(partyId);
-                const guest = guests.find((g: any) => g.guestId === id);
-                
-                if (guest) {
-                  return {
-                    id: guest.guestId,
-                    name: guest.displayName,
-                    initials: guest.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-                    joinedAt: guest.joinedAt,
-                  };
-                }
-                
-                // Fallback for cases where guest info is not available
-                return {
-                  id,
-                  name: `Guest ${id.substring(0, 6)}`,
-                  initials: 'G',
-                  joinedAt: new Date(),
-                };
-              })
-            );
-            
-            setParticipants(participantDetails);
-          } catch (error) {
-            console.error('Error loading participant details:', error);
-            // Set basic participant info if detailed info fails
-            const basicParticipants = participantIds.map(id => ({
-              id,
-              name: `Guest ${id.substring(0, 6)}`,
-              initials: 'G',
-              joinedAt: new Date(),
-            }));
-            setParticipants(basicParticipants);
-          }
-        }
-      );
-    } catch (err) {
-      console.error('Error setting up subscriptions:', err);
-      setError('Failed to load party data. Please try again.');
-      setLoading(false);
-    }
+    loadParty();
 
     return () => {
       queueUnsubscribe?.();
       participantsUnsubscribe?.();
     };
-  }, [partyId]);
+  }, [partyCode]);
+
+  // Update video when song index changes
+  useEffect(() => {
+    if (playerRef.current && currentSong) {
+      playerRef.current.loadVideoById(currentSong.videoId);
+    }
+  }, [currentSongIndex, currentSong]);
+
+  // Reset current song index when queue becomes empty
+  useEffect(() => {
+    if (queue.length === 0) {
+      setCurrentSongIndex(0);
+      setIsPlaying(false);
+    } else if (currentSongIndex >= queue.length) {
+      // If current index is beyond queue length, reset to 0
+      setCurrentSongIndex(0);
+    }
+  }, [queue.length, currentSongIndex]);
 
   // Show loading state
   if (loading) {
@@ -245,7 +288,7 @@ export const PartyPage: React.FC = () => {
           severity="success" 
           sx={{ width: '100%' }}
         >
-          Party code copied to clipboard!
+          Authenticated participant link copied to clipboard!
         </Alert>
       </Snackbar>
     </Box>

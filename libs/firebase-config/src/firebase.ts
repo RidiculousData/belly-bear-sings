@@ -27,18 +27,31 @@ export const analytics =
 
 // Connect to emulators in development
 if (emulatorConfig.useEmulators && typeof window !== 'undefined') {
-  // Only connect if not already connected
-  if (!auth.emulatorConfig) {
-    connectAuthEmulator(auth, `http://${emulatorConfig.auth.host}:${emulatorConfig.auth.port}`);
-  }
+  console.log('Connecting to Firebase emulators...');
   
-  // @ts-ignore - Firestore doesn't expose emulator state
-  if (!db._settings?.host?.includes('localhost')) {
-    connectFirestoreEmulator(db, emulatorConfig.firestore.host, emulatorConfig.firestore.port);
+  try {
+    // Connect Auth emulator
+    if (!auth.emulatorConfig) {
+      connectAuthEmulator(auth, `http://${emulatorConfig.auth.host}:${emulatorConfig.auth.port}`);
+      console.log('✅ Connected to Auth emulator');
+    }
+    
+    // Connect Firestore emulator
+    // @ts-ignore - Firestore doesn't expose emulator state
+    if (!db._settings?.host?.includes('localhost')) {
+      connectFirestoreEmulator(db, emulatorConfig.firestore.host, emulatorConfig.firestore.port);
+      console.log('✅ Connected to Firestore emulator');
+    }
+    
+    // Connect Functions emulator
+    // @ts-ignore - Functions doesn't expose emulator state
+    if (!functions._customDomain) {
+      connectFunctionsEmulator(functions, emulatorConfig.functions.host, emulatorConfig.functions.port);
+      console.log('✅ Connected to Functions emulator');
+    }
+  } catch (error) {
+    console.error('❌ Error connecting to Firebase emulators:', error);
   }
-  
-  // @ts-ignore - Functions doesn't expose emulator state
-  if (!functions._customDomain) {
-    connectFunctionsEmulator(functions, emulatorConfig.functions.host, emulatorConfig.functions.port);
-  }
+} else {
+  console.log('Using production Firebase services');
 } 

@@ -10,11 +10,10 @@ interface QRCodeSectionProps {
 
 export const QRCodeSection: React.FC<QRCodeSectionProps> = ({ 
   partyCode, 
-  partyId,
   onCopyPartyCode 
 }) => {
-  // Use the new participant URL format
-  const participantUrl = `${window.location.origin}/party/${partyCode}`;
+  // Use the new participant URL format that requires authentication
+  const participantUrl = `${window.location.origin}/participant/${partyCode}`;
   
   return (
     <Box sx={{ textAlign: 'center', mb: 3 }}>
@@ -22,43 +21,39 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
         Join the Party
       </Typography>
       
-      <Box sx={{ 
-        bgcolor: 'white', 
-        p: 1.5, 
-        borderRadius: 2,
-        display: 'inline-block',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        mb: 2,
-      }}>
-        <QRCode value={participantUrl} size={120} />
-      </Box>
-      
-      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-        Party Code:
-      </Typography>
-      <Tooltip title="Click to copy">
-        <Typography 
-          variant="h5" 
+      <Tooltip title="Click to copy participant link">
+        <Box 
+          onClick={onCopyPartyCode}
           sx={{ 
-            fontFamily: 'monospace', 
-            color: 'primary.main',
+            bgcolor: 'white', 
+            p: 2, 
+            borderRadius: 2,
+            display: 'inline-block',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            mb: 2,
             cursor: 'pointer',
-            userSelect: 'all',
-            letterSpacing: '0.1em',
-            fontWeight: 'bold',
-            p: 1,
-            borderRadius: 1,
-            border: '2px dashed',
-            borderColor: 'primary.main',
+            transition: 'all 0.2s ease-in-out',
             '&:hover': {
-              bgcolor: 'primary.main',
-              color: 'white',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.2)',
             },
           }}
-          onClick={onCopyPartyCode}
         >
-          {partyCode}
-        </Typography>
+          <QRCode value={participantUrl} size={120} />
+          
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontFamily: 'monospace', 
+              color: 'primary.main',
+              fontWeight: 'bold',
+              letterSpacing: '0.1em',
+              mt: 1,
+            }}
+          >
+            {partyCode}
+          </Typography>
+        </Box>
       </Tooltip>
     </Box>
   );
