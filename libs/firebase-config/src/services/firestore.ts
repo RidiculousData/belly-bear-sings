@@ -59,12 +59,26 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
 }
 
 // Party operations
-export async function createParty(partyData: Omit<Party, 'partyId' | 'createdAt'>): Promise<string> {
+export async function createParty(partyData: Omit<Party, 'partyId' | 'createdAt' | 'code' | 'participants'>): Promise<string> {
+  const partyCode = generatePartyCode();
   const docRef = await addDoc(collection(db, collections.parties), {
     ...partyData,
+    code: partyCode,
+    participants: [partyData.hostId],
     createdAt: serverTimestamp(),
   });
   return docRef.id;
+}
+
+// Helper function to generate party codes
+function generatePartyCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    if (i === 4) code += '-';
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 export async function getParty(partyId: string): Promise<Party | null> {
@@ -72,13 +86,33 @@ export async function getParty(partyId: string): Promise<Party | null> {
   if (docSnap.exists()) {
     const data = docSnap.data();
     return {
-      ...data,
+      ...(data as Omit<Party, 'partyId' | 'createdAt' | 'startedAt' | 'endedAt'>),
       partyId,
       createdAt: data.createdAt?.toDate() || new Date(),
+      startedAt: data.startedAt?.toDate(),
       endedAt: data.endedAt?.toDate(),
     } as Party;
   }
   return null;
+}
+
+export async function getPartyByCode(partyCode: string): Promise<Party | null> {
+  const q = query(collection(db, collections.parties), where('code', '==', partyCode));
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) {
+    return null;
+  }
+  
+  const docSnap = querySnapshot.docs[0];
+  const data = docSnap.data();
+  return {
+    ...(data as Omit<Party, 'partyId' | 'createdAt' | 'startedAt' | 'endedAt'>),
+    partyId: docSnap.id,
+    createdAt: data.createdAt?.toDate() || new Date(),
+    startedAt: data.startedAt?.toDate(),
+    endedAt: data.endedAt?.toDate(),
+  } as Party;
 }
 
 export async function updateParty(partyId: string, updates: Partial<Party>): Promise<void> {

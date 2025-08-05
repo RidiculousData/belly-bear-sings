@@ -20,12 +20,53 @@ check_port_detailed() {
     fi
 }
 
+# Function to check if development processes are running
+check_running_processes() {
+    local processes_running=false
+    
+    echo "🔍 Checking for running development processes..."
+    
+    # Check for Firebase emulators
+    if pgrep -f "firebase emulators" > /dev/null; then
+        echo "⚠️  Firebase emulators are running"
+        processes_running=true
+    fi
+    
+    # Check for Vite dev server
+    if pgrep -f "vite" > /dev/null; then
+        echo "⚠️  Vite development server is running"
+        processes_running=true
+    fi
+    
+    # Check for PNPM dev processes
+    if pgrep -f "pnpm dev" > /dev/null; then
+        echo "⚠️  PNPM development processes are running"
+        processes_running=true
+    fi
+    
+    if [ "$processes_running" = true ]; then
+        echo ""
+        echo "🔄 Development environment appears to be running!"
+        echo "   - Main App: http://localhost:3000"
+        echo "   - Firebase Emulator UI: http://localhost:4000"
+        echo ""
+        return 1
+    else
+        echo "✅ No development processes are currently running"
+        return 0
+    fi
+}
+
 # Check all required ports
 ports_available=true
 
 check_port_detailed 3000 "Main App" || ports_available=false
-check_port_detailed 3001 "Singer PWA" || ports_available=false  
+check_port_detailed 3001 "Rogue App (should be free)" || ports_available=false
 check_port_detailed 4000 "Firebase Emulator UI" || ports_available=false
+check_port_detailed 8080 "Firebase Emulator" || ports_available=false
+
+echo ""
+check_running_processes
 
 echo ""
 if [ "$ports_available" = true ]; then
@@ -45,6 +86,9 @@ else
     echo "   pkill -f 'firebase emulators'  # Stop Firebase"
     echo "   pkill -f 'pnpm dev'           # Stop PNPM dev servers"
     echo "   pkill -f 'vite'               # Stop Vite servers"
+    echo ""
+    echo "💡 To force kill all processes on these ports:"
+    echo "   lsof -ti:3000,3001,4000,8080 | xargs kill -9 2>/dev/null || true"
 fi
 
 echo "" 

@@ -32,34 +32,58 @@ kill_processes() {
     fi
 }
 
+# Function to kill processes on specific ports
+kill_port_processes() {
+    local port=$1
+    local name=$2
+    
+    if lsof -i :$port > /dev/null 2>&1; then
+        echo "  🔍 Stopping processes on port $port ($name)..."
+        lsof -ti:$port | xargs kill -9 2>/dev/null || true
+        sleep 1
+        
+        if lsof -i :$port > /dev/null 2>&1; then
+            echo "  ❌ Failed to stop processes on port $port"
+            return 1
+        else
+            echo "  ✅ Port $port is now free"
+            return 0
+        fi
+    else
+        echo "  ✅ Port $port is already free"
+        return 0
+    fi
+}
+
 # Stop all services
 kill_processes "firebase emulators" "Firebase Emulators"
 kill_processes "pnpm dev" "PNPM Development Servers"
 kill_processes "vite" "Vite Development Servers"
+kill_processes "concurrently" "Concurrently Processes"
 
 echo ""
-echo "🔍 Checking if ports are now free..."
+echo "🔍 Checking and freeing up ports..."
 
-# Check if ports are now available
+# Kill any processes on our specific ports
 ports_freed=true
 
-for port in 3000 4000; do
-    if lsof -i :$port > /dev/null 2>&1; then
-        echo "  ⚠️  Port $port is still in use"
-        ports_freed=false
-    else
-        echo "  ✅ Port $port is now free"
-    fi
-done
+kill_port_processes 3000 "Main App" || ports_freed=false
+kill_port_processes 3001 "Rogue App" || ports_freed=false
+kill_port_processes 4000 "Firebase Emulator UI" || ports_freed=false
+kill_port_processes 8080 "Firebase Emulator" || ports_freed=false
 
 echo ""
 if [ "$ports_freed" = true ]; then
     echo "✅ All development services stopped successfully!"
+    echo "🎯 All ports (3000, 3001, 4000, 8080) are now free"
 else
     echo "⚠️  Some ports are still in use. You may need to manually stop remaining processes."
     echo ""
     echo "🔍 To see what's still running:"
-    echo "   lsof -i :3000 -i :4000"
+    echo "   lsof -i :3000 -i :3001 -i :4000 -i :8080"
+    echo ""
+    echo "💡 To force kill all remaining processes:"
+    echo "   lsof -ti:3000,3001,4000,8080 | xargs kill -9 2>/dev/null || true"
 fi
 
 echo "" 

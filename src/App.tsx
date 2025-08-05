@@ -24,8 +24,8 @@ function App() {
           <ProfilePage />
         </ProtectedRoute>
       } />
-      {/* Protected Participant Page - requires Google sign-in */}
-      <Route path="/participant/:partyId" element={
+      {/* Protected Participant Page - requires Google sign-in - now uses partyCode like party page */}
+      <Route path="/participant/:partyCode" element={
         <ProtectedRoute>
           <ParticipantPage />
         </ProtectedRoute>

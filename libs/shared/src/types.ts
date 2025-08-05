@@ -13,10 +13,20 @@ export interface User {
 export interface Party {
   partyId: string;
   hostId: string;
+  code: string;
   name: string;
   createdAt: Date;
-  isActive: boolean;
+  startedAt?: Date;
   endedAt?: Date;
+  isActive: boolean;
+  participants: string[];
+  settings: {
+    maxParticipants: number;
+    allowDuplicates: boolean;
+    requireApproval: boolean;
+    boostsPerPerson: number;
+    maxSongsPerPerson: number;
+  };
 }
 
 // Party guest types

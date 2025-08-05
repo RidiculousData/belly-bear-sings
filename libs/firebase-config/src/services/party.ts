@@ -16,24 +16,7 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-
-export interface Party {
-  id: string;
-  hostId: string;
-  code: string;
-  name: string;
-  createdAt: Timestamp;
-  startedAt?: Timestamp;
-  endedAt?: Timestamp;
-  participants: string[];
-  settings: {
-    maxParticipants: number;
-    allowDuplicates: boolean;
-    requireApproval: boolean;
-    boostsPerPerson: number;
-    maxSongsPerPerson: number;
-  };
-}
+import { Party } from '@bellybearsings/shared';
 
 export interface QueuedSong {
   id: string;
@@ -85,17 +68,25 @@ export interface SongHistory {
 // Party management
 export const createParty = async (hostId: string, name: string, settings: Party['settings']) => {
   const partyCode = generatePartyCode();
-  const partyData: Omit<Party, 'id'> = {
+  const partyData: Omit<Party, 'partyId' | 'createdAt'> = {
     hostId,
     code: partyCode,
     name,
-    createdAt: serverTimestamp() as Timestamp,
+    isActive: true,
     participants: [hostId],
     settings,
   };
   
-  const docRef = await addDoc(collection(db, 'parties'), partyData);
-  return { id: docRef.id, ...partyData };
+  const docRef = await addDoc(collection(db, 'parties'), {
+    ...partyData,
+    createdAt: serverTimestamp(),
+  });
+  
+  return { 
+    id: docRef.id, 
+    ...partyData,
+    createdAt: serverTimestamp() as Timestamp
+  };
 };
 
 export const startParty = async (partyId: string) => {
