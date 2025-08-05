@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate, useLocation } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -8,7 +8,7 @@ import {
   Alert,
   Button,
 } from '@mui/material';
-import { firestoreService, functionsService, authService } from '@bellybearsings/firebase-config';
+import { firestoreService, functionsService } from '@bellybearsings/firebase-config';
 import { ParticipantDashboard } from '../components/ParticipantDashboard';
 import { GoogleIdentityDialog } from '../components/GoogleIdentityDialog';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +21,6 @@ import { useAuth } from '../contexts/AuthContext';
 export const ParticipantPage: React.FC = () => {
   const { partyId } = useParams<{ partyId: string }>();
   const { userProfile, loading: authLoading, signOut, signInWithProvider } = useAuth();
-  const location = useLocation();
   
   const [isJoining, setIsJoining] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
