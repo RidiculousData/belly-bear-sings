@@ -21,10 +21,10 @@ import {
   writeBatch,
   increment
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, getEnvironmentCollectionPath, getEnvironment } from '../firebase';
 import { User, Party, PartyGuest, QueueSong, FavoriteSong } from '@bellybearsings/shared';
 
-// Collection references
+// Collection references (base names, will be prefixed with environment)
 export const collections = {
   users: 'users',
   parties: 'parties',
@@ -33,9 +33,10 @@ export const collections = {
   favoriteSongs: 'favoriteSongs',
 };
 
-// User operations
+// User operations (multi-tenant)
 export async function createUser(userId: string, userData: Omit<User, 'userId' | 'createdAt'>): Promise<void> {
-  await setDoc(doc(db, collections.users, userId), {
+  const tenant = getEnvironment();
+  await setDoc(doc(db, 'tenants', tenant, collections.users, userId), {
     ...userData,
     userId,
     createdAt: serverTimestamp(),
@@ -43,7 +44,8 @@ export async function createUser(userId: string, userData: Omit<User, 'userId' |
 }
 
 export async function getUser(userId: string): Promise<User | null> {
-  const docSnap = await getDoc(doc(db, collections.users, userId));
+  const tenant = getEnvironment();
+  const docSnap = await getDoc(doc(db, 'tenants', tenant, collections.users, userId));
   if (docSnap.exists()) {
     const data = docSnap.data();
     return {
@@ -55,13 +57,15 @@ export async function getUser(userId: string): Promise<User | null> {
 }
 
 export async function updateUser(userId: string, updates: Partial<User>): Promise<void> {
-  await updateDoc(doc(db, collections.users, userId), updates);
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, collections.users, userId), updates);
 }
 
-// Party operations
+// Party operations (multi-tenant)
 export async function createParty(partyData: Omit<Party, 'partyId' | 'createdAt' | 'code' | 'participants'>): Promise<string> {
   const partyCode = generatePartyCode();
-  const docRef = await addDoc(collection(db, collections.parties), {
+  const tenant = getEnvironment();
+  const docRef = await addDoc(collection(db, 'tenants', tenant, collections.parties), {
     ...partyData,
     code: partyCode,
     participants: [partyData.hostId],
@@ -82,7 +86,8 @@ function generatePartyCode(): string {
 }
 
 export async function getParty(partyId: string): Promise<Party | null> {
-  const docSnap = await getDoc(doc(db, collections.parties, partyId));
+  const tenant = getEnvironment();
+  const docSnap = await getDoc(doc(db, 'tenants', tenant, collections.parties, partyId));
   if (docSnap.exists()) {
     const data = docSnap.data();
     return {
@@ -97,7 +102,8 @@ export async function getParty(partyId: string): Promise<Party | null> {
 }
 
 export async function getPartyByCode(partyCode: string): Promise<Party | null> {
-  const q = query(collection(db, collections.parties), where('code', '==', partyCode));
+  const tenant = getEnvironment();
+  const q = query(collection(db, 'tenants', tenant, collections.parties), where('code', '==', partyCode));
   const querySnapshot = await getDocs(q);
   
   if (querySnapshot.empty) {
@@ -116,17 +122,19 @@ export async function getPartyByCode(partyCode: string): Promise<Party | null> {
 }
 
 export async function updateParty(partyId: string, updates: Partial<Party>): Promise<void> {
-  await updateDoc(doc(db, collections.parties, partyId), updates);
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, collections.parties, partyId), updates);
 }
 
-// Party guest operations
+// Party guest operations (multi-tenant)
 export async function addPartyGuest(
   partyId: string,
   guestId: string,
   guestData: Omit<PartyGuest, 'guestId' | 'joinedAt'>
 ): Promise<void> {
+  const tenant = getEnvironment();
   await setDoc(
-    doc(db, collections.parties, partyId, collections.partyGuests, guestId),
+    doc(db, 'tenants', tenant, 'parties', partyId, collections.partyGuests, guestId),
     {
       ...guestData,
       guestId,
@@ -136,8 +144,9 @@ export async function addPartyGuest(
 }
 
 export async function getPartyGuests(partyId: string): Promise<PartyGuest[]> {
+  const tenant = getEnvironment();
   const querySnapshot = await getDocs(
-    collection(db, collections.parties, partyId, collections.partyGuests)
+    collection(db, 'tenants', tenant, 'parties', partyId, collections.partyGuests)
   );
   
   return querySnapshot.docs.map(doc => {
@@ -150,13 +159,14 @@ export async function getPartyGuests(partyId: string): Promise<PartyGuest[]> {
   });
 }
 
-// Queue operations
+// Queue operations (multi-tenant)
 export async function addSongToQueue(
   partyId: string,
   songData: Omit<QueueSong, 'songId' | 'addedAt'>
 ): Promise<string> {
+  const tenant = getEnvironment();
   const docRef = await addDoc(
-    collection(db, collections.parties, partyId, collections.queueSongs),
+    collection(db, 'tenants', tenant, 'parties', partyId, collections.queueSongs),
     {
       ...songData,
       addedAt: serverTimestamp(),
@@ -166,8 +176,9 @@ export async function addSongToQueue(
 }
 
 export async function getQueueSongs(partyId: string): Promise<QueueSong[]> {
+  const tenant = getEnvironment();
   const querySnapshot = await getDocs(
-    collection(db, collections.parties, partyId, collections.queueSongs)
+    collection(db, 'tenants', tenant, 'parties', partyId, collections.queueSongs)
   );
   
   return querySnapshot.docs.map(doc => {
@@ -187,23 +198,26 @@ export async function updateQueueSong(
   songId: string,
   updates: Partial<QueueSong>
 ): Promise<void> {
+  const tenant = getEnvironment();
   await updateDoc(
-    doc(db, collections.parties, partyId, collections.queueSongs, songId),
+    doc(db, 'tenants', tenant, 'parties', partyId, collections.queueSongs, songId),
     updates
   );
 }
 
 export async function removeSongFromQueue(partyId: string, songId: string): Promise<void> {
-  await deleteDoc(doc(db, collections.parties, partyId, collections.queueSongs, songId));
+  const tenant = getEnvironment();
+  await deleteDoc(doc(db, 'tenants', tenant, 'parties', partyId, collections.queueSongs, songId));
 }
 
-// Real-time subscriptions
+// Real-time subscriptions (multi-tenant)
 export function subscribeToQueue(
   partyId: string,
   callback: (songs: QueueSong[]) => void
 ): Unsubscribe {
+  const tenant = getEnvironment();
   const q = query(
-    collection(db, collections.parties, partyId, collections.queueSongs),
+    collection(db, 'tenants', tenant, 'parties', partyId, collections.queueSongs),
     orderBy('addedAt', 'asc')
   );
   
@@ -219,6 +233,14 @@ export function subscribeToQueue(
       } as QueueSong;
     });
     callback(songs);
+  }, (error) => {
+    // Handle permission errors gracefully
+    if (error.code === 'permission-denied') {
+      console.warn(`Permission denied for queue subscription (partyId: ${partyId}):`, error.message);
+      callback([]);
+    } else {
+      console.error(`Error in queue snapshot listener (partyId: ${partyId}):`, error);
+    }
   });
 }
 
@@ -226,7 +248,8 @@ export function subscribeToPartyGuests(
   partyId: string,
   callback: (guests: PartyGuest[]) => void
 ): Unsubscribe {
-  const q = collection(db, collections.parties, partyId, collections.partyGuests);
+  const tenant = getEnvironment();
+  const q = collection(db, 'tenants', tenant, 'parties', partyId, collections.partyGuests);
   
   return onSnapshot(q, (snapshot) => {
     const guests = snapshot.docs.map(doc => {
@@ -238,16 +261,25 @@ export function subscribeToPartyGuests(
       } as PartyGuest;
     });
     callback(guests);
+  }, (error) => {
+    // Handle permission errors gracefully
+    if (error.code === 'permission-denied') {
+      console.warn(`Permission denied for party guests subscription (partyId: ${partyId}):`, error.message);
+      callback([]);
+    } else {
+      console.error(`Error in party guests snapshot listener (partyId: ${partyId}):`, error);
+    }
   });
 }
 
-// Favorite songs operations
+// Favorite songs operations (multi-tenant)
 export async function addFavoriteSong(
   userId: string,
   songData: Omit<FavoriteSong, 'songId' | 'addedAt'>
 ): Promise<string> {
+  const tenant = getEnvironment();
   const docRef = await addDoc(
-    collection(db, collections.users, userId, collections.favoriteSongs),
+    collection(db, 'tenants', tenant, 'users', userId, collections.favoriteSongs),
     {
       ...songData,
       addedAt: serverTimestamp(),
@@ -257,8 +289,9 @@ export async function addFavoriteSong(
 }
 
 export async function getFavoriteSongs(userId: string): Promise<FavoriteSong[]> {
+  const tenant = getEnvironment();
   const querySnapshot = await getDocs(
-    collection(db, collections.users, userId, collections.favoriteSongs)
+    collection(db, 'tenants', tenant, 'users', userId, collections.favoriteSongs)
   );
   
   return querySnapshot.docs.map(doc => {
@@ -272,7 +305,8 @@ export async function getFavoriteSongs(userId: string): Promise<FavoriteSong[]> 
 }
 
 export async function removeFavoriteSong(userId: string, songId: string): Promise<void> {
-  await deleteDoc(doc(db, collections.users, userId, collections.favoriteSongs, songId));
+  const tenant = getEnvironment();
+  await deleteDoc(doc(db, 'tenants', tenant, 'users', userId, collections.favoriteSongs, songId));
 }
 
 // Batch operations
@@ -280,10 +314,11 @@ export function createBatch(): WriteBatch {
   return writeBatch(db);
 }
 
-// Helper to decrement boosts
+// Helper to decrement boosts (multi-tenant)
 export async function decrementBoosts(partyId: string, guestId: string): Promise<void> {
+  const tenant = getEnvironment();
   await updateDoc(
-    doc(db, collections.parties, partyId, collections.partyGuests, guestId),
+    doc(db, 'tenants', tenant, 'parties', partyId, collections.partyGuests, guestId),
     {
       boostsRemaining: increment(-1),
     }

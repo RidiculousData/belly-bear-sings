@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PartyPage } from './pages/PartyPage';
 import { ParticipantPage } from './pages/ParticipantPage';
+import { DomainModelPage } from './pages/DomainModelPage';
 
 function App() {
   return (
@@ -22,6 +23,11 @@ function App() {
       <Route path="/profile" element={
         <ProtectedRoute>
           <ProfilePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/domain-model" element={
+        <ProtectedRoute>
+          <DomainModelPage />
         </ProtectedRoute>
       } />
       {/* Protected Participant Page - requires Google sign-in - now uses partyCode like party page */}

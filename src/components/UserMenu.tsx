@@ -12,7 +12,7 @@ import {
   Box,
   useTheme,
 } from '@mui/material';
-import { AccountCircle, Logout as LogoutIcon, Dashboard as DashboardIcon } from '@mui/icons-material';
+import { AccountCircle, Logout as LogoutIcon, Dashboard as DashboardIcon, Schema as SchemaIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { User as AppUser } from '@bellybearsings/shared';
@@ -44,6 +44,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onSignOut
   const handleDashboard = () => {
     handleClose();
     navigate('/dashboard');
+  };
+
+  const handleDomainModel = () => {
+    handleClose();
+    navigate('/domain-model');
   };
 
   const handleLogout = async () => {
@@ -169,6 +174,14 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, userProfile, onSignOut
           </ListItemIcon>
           <ListItemText>Profile</ListItemText>
         </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleDomainModel}>
+          <ListItemIcon>
+            <SchemaIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Domain Model</ListItemText>
+        </MenuItem>
+        <Divider />
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" />

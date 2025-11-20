@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  readonly VITE_TENANT?: string; // Tenant for multi-tenancy: 'dev', 'test', or 'prod'
   readonly VITE_FIREBASE_API_KEY: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN: string;
   readonly VITE_FIREBASE_PROJECT_ID: string;
@@ -9,7 +10,6 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string;
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
   readonly VITE_YOUTUBE_API_KEY: string;
-  readonly VITE_USE_FIREBASE_EMULATORS?: string;
 }
 
 interface ImportMeta {

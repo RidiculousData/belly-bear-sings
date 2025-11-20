@@ -1,0 +1,233 @@
+classDiagram
+    %% Core Domain Entities
+    class User {
+        -String userId
+        -String firstName
+        -String lastName
+        -String email
+        -String phoneNumber
+        -String profilePicture
+        -Date createdAt
+        -Date updatedAt
+        +String fullName
+        +String initials
+        +updateProfile(updates) void
+        +validate() Promise~void~
+    }
+
+    class Party {
+        -String partyId
+        -String name
+        -String hostId
+        -String code
+        -PartyStatus status
+        -String[] participants
+        -Number maxParticipants
+        -String description
+        -Date createdAt
+        -Date updatedAt
+        -Date startedAt
+        -Date endedAt
+        +Boolean isActive
+        +Boolean hasStarted
+        +Boolean hasEnded
+        +Number participantCount
+        +start() void
+        +pause() void
+        +resume() void
+        +end() void
+        +addParticipant(userId) void
+        +removeParticipant(userId) void
+        +updateDetails(updates) void
+        +validate() Promise~void~
+        +createNew(data) Party$
+        +findByCode(code) Party$ Promise~Party~
+        +findByHost(hostId) Party$ Promise~Party[]~
+    }
+
+    class PartyGuest {
+        -String guestId
+        -String partyId
+        -String userId
+        -String displayName
+        -String email
+        -String profilePicture
+        -Boolean isHost
+        -Number boostsRemaining
+        -Date joinedAt
+        -Date leftAt
+        +Boolean hasBoostsLeft
+        +String initials
+        +useBoost() void
+        +addBoosts(count) void
+        +leave() void
+        +rejoin() void
+        +validate() Promise~void~
+        +createNew(data) PartyGuest$
+        +findByParty(partyId) PartyGuest$ Promise~PartyGuest[]~
+        +findActiveByParty(partyId) PartyGuest$ Promise~PartyGuest[]~
+    }
+
+    class QueueSong {
+        -String songId
+        -String partyId
+        -String videoId
+        -String title
+        -String artist
+        -RequestedBy requestedBy
+        -Boolean boosted
+        -Number boostCount
+        -QueueSongStatus status
+        -Date addedAt
+        -Date boostedAt
+        -Date playedAt
+        -Praise[] praises
+        +Boolean isQueued
+        +Boolean isPlaying
+        +Boolean hasBeenPlayed
+        +Number praiseCount
+        +boost() void
+        +unboost() void
+        +markAsPlaying() void
+        +markAsPlayed() void
+        +skip() void
+        +addPraise(praise) void
+        +removePraise(userId) void
+        +validate() Promise~void~
+        +createNew(data) QueueSong$
+        +findByParty(partyId) QueueSong$ Promise~QueueSong[]~
+        +findQueuedByParty(partyId) QueueSong$ Promise~QueueSong[]~
+    }
+
+    class FavoriteSong {
+        -String songId
+        -String userId
+        -String videoId
+        -String title
+        -String artist
+        -String thumbnailUrl
+        -String duration
+        -Date addedAt
+        -Number timesRequested
+        -Date lastRequestedAt
+        -String[] tags
+        +String displayTitle
+        +Boolean isPopular
+        +Boolean wasRecentlyRequested
+        +markAsRequested() void
+        +addTag(tag) void
+        +removeTag(tag) void
+        +updateMetadata(updates) void
+        +validate() Promise~void~
+        +createNew(data) FavoriteSong$
+        +findByUser(userId) FavoriteSong$ Promise~FavoriteSong[]~
+        +findPopularByUser(userId) FavoriteSong$ Promise~FavoriteSong[]~
+    }
+
+    %% Value Objects
+    class RequestedBy {
+        +String id
+        +String name
+        +String initials
+        +String avatar
+    }
+
+    class Praise {
+        +String from
+        +String fromName
+        +PraiseType type
+        +Date timestamp
+    }
+
+    class PartyCode {
+        +String value
+        +generate() String$
+        +validate() Boolean
+    }
+
+    %% Enumerations
+    class PartyStatus {
+        <<enumeration>>
+        ACTIVE
+        PAUSED
+        ENDED
+    }
+
+    class QueueSongStatus {
+        <<enumeration>>
+        QUEUED
+        PLAYING
+        PLAYED
+        SKIPPED
+    }
+
+    class PraiseType {
+        <<enumeration>>
+        THUMBSUP
+        HEART
+        FIRE
+        STAR
+    }
+
+    %% Base Model (Abstract)
+    class BaseModel {
+        <<abstract>>
+        #String collectionName
+        #String idField
+        #Object data
+        +String id
+        +Object attributes
+        +save() Promise~void~
+        +delete() Promise~void~
+        +reload() Promise~void~
+        +update(updates) void
+        +find(id) Promise~BaseModel~
+        +findWhere(field, op, value) Promise~BaseModel[]~
+        +findAll(constraints) Promise~BaseModel[]~
+        +subscribe(callback, constraints) Unsubscribe
+        #validate() Promise~void~*
+        #transformForSave() Object*
+        #transformFromFirestore(data, id) Object*
+    }
+
+    %% Domain Services
+    class PartyCodeGenerator {
+        <<service>>
+        +generatePartyCode() String$
+    }
+
+    class QueueOrderingService {
+        <<service>>
+        +getOrderedQueue(songs) QueueSong[]
+    }
+
+    %% Relationships
+    User "1" --> "*" Party : hosts
+    User "1" --> "*" PartyGuest : participates as
+    User "1" --> "*" FavoriteSong : has favorites
+    
+    Party "1" --> "*" PartyGuest : contains
+    Party "1" --> "*" QueueSong : contains
+    
+    PartyGuest "1" --> "*" QueueSong : requests
+    
+    QueueSong "1" --> "1" RequestedBy : has
+    QueueSong "1" --> "*" Praise : receives
+    
+    Party --> PartyStatus : uses
+    QueueSong --> QueueSongStatus : uses
+    Praise --> PraiseType : uses
+    
+    BaseModel <|-- User
+    BaseModel <|-- Party
+    BaseModel <|-- PartyGuest
+    BaseModel <|-- QueueSong
+    BaseModel <|-- FavoriteSong
+
+    %% Notes
+    note for Party "Aggregate Root\nContains PartyGuest and QueueSong\nas subcollections"
+    note for User "Aggregate Root\nContains FavoriteSong\nas subcollection"
+    note for PartyGuest "Part of Party Aggregate\nStored as subcollection"
+    note for QueueSong "Part of Party Aggregate\nStored as subcollection\nOrdered by: boosted desc, addedAt asc"
+    note for FavoriteSong "Part of User Aggregate\nStored as subcollection"
+

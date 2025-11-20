@@ -15,7 +15,7 @@ import {
   addDoc,
   getDocs,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, getEnvironment } from '../firebase';
 import { Party } from '@bellybearsings/shared';
 
 export interface QueuedSong {
@@ -65,9 +65,11 @@ export interface SongHistory {
   };
 }
 
-// Party management
+// Party management (multi-tenant)
 export const createParty = async (hostId: string, name: string, settings: Party['settings']) => {
+  const tenant = getEnvironment();
   const partyCode = generatePartyCode();
+  
   const partyData: Omit<Party, 'partyId' | 'createdAt'> = {
     hostId,
     code: partyCode,
@@ -77,7 +79,7 @@ export const createParty = async (hostId: string, name: string, settings: Party[
     settings,
   };
   
-  const docRef = await addDoc(collection(db, 'parties'), {
+  const docRef = await addDoc(collection(db, 'tenants', tenant, 'parties'), {
     ...partyData,
     createdAt: serverTimestamp(),
   });
@@ -90,33 +92,28 @@ export const createParty = async (hostId: string, name: string, settings: Party[
 };
 
 export const startParty = async (partyId: string) => {
-  await updateDoc(doc(db, 'parties', partyId), {
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, 'parties', partyId), {
     startedAt: serverTimestamp(),
   });
 };
 
 export const endParty = async (partyId: string) => {
-  await updateDoc(doc(db, 'parties', partyId), {
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, 'parties', partyId), {
     endedAt: serverTimestamp(),
   });
 };
 
 export const getPartyByCode = async (partyCode: string) => {
-  const q = query(collection(db, 'parties'), where('code', '==', partyCode));
-  const snapshot = await getDocs(q);
-  
-  if (snapshot.empty) {
-    return null;
-  }
-  
-  const partyDoc = snapshot.docs[0];
-  const partyData = partyDoc.data() as Party;
-  
-  return { ...partyData, id: partyDoc.id };
+  // Use the firestore service which handles tenant-prefixed paths
+  const { getPartyByCode: getPartyByCodeFromFirestore } = await import('./firestore');
+  return await getPartyByCodeFromFirestore(partyCode);
 };
 
 export const joinParty = async (partyCode: string, userId: string, displayName?: string) => {
-  const q = query(collection(db, 'parties'), where('code', '==', partyCode));
+  const tenant = getEnvironment();
+  const q = query(collection(db, 'tenants', tenant, 'parties'), where('code', '==', partyCode));
   const snapshot = await getDocs(q);
   
   if (snapshot.empty) {
@@ -137,7 +134,7 @@ export const joinParty = async (partyCode: string, userId: string, displayName?:
   
   // Also create a guest record if displayName is provided
   if (displayName) {
-    await setDoc(doc(db, 'parties', partyDoc.id, 'partyGuests', userId), {
+    await setDoc(doc(db, 'tenants', tenant, 'parties', partyDoc.id, 'partyGuests', userId), {
       guestId: userId,
       displayName: displayName,
       boostsRemaining: partyData.settings.boostsPerPerson,
@@ -150,86 +147,91 @@ export const joinParty = async (partyCode: string, userId: string, displayName?:
   return { ...partyData, id: partyDoc.id };
 };
 
-// Song queue management
+// Song queue management (multi-tenant)
 export const addSongToQueue = async (
   partyId: string,
   song: Omit<QueuedSong, 'id' | 'partyId' | 'addedAt' | 'status' | 'praises'>
 ) => {
-  const songData = {
+  // Use the firestore service which handles tenant-prefixed paths
+  const { addSongToQueue: addSongToQueueInFirestore } = await import('./firestore');
+  const songId = await addSongToQueueInFirestore(partyId, {
+    guestId: song.requestedBy.id,
+    requesterName: song.requestedBy.name,
+    youtubeVideoId: song.videoId,
+    videoTitle: song.title,
+    thumbnailUrl: '', // Will need to be provided
+    duration: 0, // Will need to be provided
+    isBoosted: false,
+  });
+  
+  return {
     ...song,
+    id: songId,
     partyId,
     addedAt: serverTimestamp() as Timestamp,
     status: 'queued' as const,
     praises: [],
-  };
-  
-  const docRef = await addDoc(collection(db, 'queuedSongs'), songData);
-  return { ...songData, id: docRef.id } as QueuedSong;
+  } as QueuedSong;
 };
 
-export const boostSong = async (songId: string) => {
-  const songRef = doc(db, 'queuedSongs', songId);
+export const boostSong = async (songId: string, partyId: string) => {
+  const tenant = getEnvironment();
+  const songRef = doc(db, 'tenants', tenant, 'parties', partyId, 'queueSongs', songId);
   const songDoc = await getDoc(songRef);
   
   if (!songDoc.exists()) {
     throw new Error('Song not found');
   }
   
-  const currentBoostCount = songDoc.data().boostCount || 0;
-  
   await updateDoc(songRef, {
-    boosted: true,
-    boostCount: currentBoostCount + 1,
+    isBoosted: true,
+    boostedAt: serverTimestamp(),
   });
 };
 
-export const markSongAsPlaying = async (songId: string) => {
-  await updateDoc(doc(db, 'queuedSongs', songId), {
-    status: 'playing',
+export const markSongAsPlaying = async (songId: string, partyId: string) => {
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, 'parties', partyId, 'queueSongs', songId), {
     playedAt: serverTimestamp(),
   });
 };
 
-export const markSongAsPlayed = async (songId: string) => {
-  await updateDoc(doc(db, 'queuedSongs', songId), {
-    status: 'played',
+export const markSongAsPlayed = async (songId: string, partyId: string) => {
+  // Songs are marked as played when playedAt is set
+  // Additional status can be tracked if needed
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, 'parties', partyId, 'queueSongs', songId), {
+    playedAt: serverTimestamp(),
   });
 };
 
-export const markSongAsSkipped = async (songId: string) => {
-  await updateDoc(doc(db, 'queuedSongs', songId), {
-    status: 'skipped',
+export const markSongAsSkipped = async (songId: string, partyId: string) => {
+  const tenant = getEnvironment();
+  await updateDoc(doc(db, 'tenants', tenant, 'parties', partyId, 'queueSongs', songId), {
+    playedAt: serverTimestamp(),
   });
 };
 
-// Praise management
+// Praise management (multi-tenant)
+// Note: Praise functionality can be added to QueueSong model if needed
 export const addPraise = async (
   songId: string,
+  partyId: string,
   praise: { from: string; fromName: string; type: 'thumbsup' | 'heart' | 'fire' | 'star' }
 ) => {
-  const songRef = doc(db, 'queuedSongs', songId);
-  await updateDoc(songRef, {
-    praises: arrayUnion({
-      ...praise,
-      timestamp: serverTimestamp(),
-    }),
-  });
-  
-  // Also update the user's song history
-  const songDoc = await getDoc(songRef);
-  if (songDoc.exists()) {
-    const songData = songDoc.data() as QueuedSong;
-    await updateSongHistory(songData.requestedBy.id, songData, praise);
-  }
+  // Praise functionality can be implemented by extending QueueSong model
+  // For now, this is a placeholder
+  console.warn('Praise functionality not yet implemented for multi-tenant architecture');
 };
 
-// Song history management
+// Song history management (multi-tenant)
 export const updateSongHistory = async (
   userId: string,
   song: QueuedSong,
   newPraise?: { from: string; fromName: string; type: 'thumbsup' | 'heart' | 'fire' | 'star' }
 ) => {
-  const historyRef = doc(collection(db, 'songHistory'));
+  const tenant = getEnvironment();
+  const historyRef = doc(collection(db, 'tenants', tenant, 'songHistory'));
   const historyData: SongHistory = {
     id: historyRef.id,
     userId,
@@ -260,8 +262,9 @@ export const updateSongHistory = async (
 };
 
 export const getUserSongHistory = async (userId: string) => {
+  const tenant = getEnvironment();
   const q = query(
-    collection(db, 'songHistory'),
+    collection(db, 'tenants', tenant, 'songHistory'),
     where('userId', '==', userId),
     orderBy('sungAt', 'desc')
   );
@@ -275,17 +278,44 @@ export const subscribeToPartyQueue = (
   partyId: string,
   callback: (songs: QueuedSong[]) => void
 ) => {
+  const tenant = getEnvironment();
   const q = query(
-    collection(db, 'queuedSongs'),
-    where('partyId', '==', partyId),
-    where('status', 'in', ['queued', 'playing']),
-    orderBy('boosted', 'desc'),
+    collection(db, 'tenants', tenant, 'parties', partyId, 'queueSongs'),
+    orderBy('isBoosted', 'desc'),
     orderBy('addedAt', 'asc')
   );
   
   return onSnapshot(q, (snapshot) => {
-    const songs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QueuedSong));
-    callback(songs);
+    const queueSongs = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        partyId: partyId,
+        videoId: data.youtubeVideoId || '',
+        title: data.videoTitle || '',
+        artist: '', // Will need to be added to QueueSong model
+        requestedBy: {
+          id: data.guestId || '',
+          name: data.requesterName || '',
+          initials: (data.requesterName || '').split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+        },
+        boosted: data.isBoosted || false,
+        boostCount: data.isBoosted ? 1 : 0,
+        addedAt: data.addedAt?.toDate() ? Timestamp.fromDate(data.addedAt.toDate()) : serverTimestamp() as Timestamp,
+        playedAt: data.playedAt?.toDate() ? Timestamp.fromDate(data.playedAt.toDate()) : undefined,
+        status: data.playedAt ? 'played' as const : 'queued' as const,
+        praises: [], // Can be added to QueueSong model if needed
+      } as QueuedSong;
+    });
+    callback(queueSongs);
+  }, (error) => {
+    // Handle permission errors gracefully
+    if (error.code === 'permission-denied') {
+      console.warn(`Permission denied for party queue subscription (partyId: ${partyId}):`, error.message);
+      callback([]);
+    } else {
+      console.error(`Error in party queue snapshot listener (partyId: ${partyId}):`, error);
+    }
   });
 };
 
@@ -293,10 +323,21 @@ export const subscribeToPartyParticipants = (
   partyId: string,
   callback: (participants: string[]) => void
 ) => {
-  return onSnapshot(doc(db, 'parties', partyId), (doc) => {
+  const tenant = getEnvironment();
+  return onSnapshot(doc(db, 'tenants', tenant, 'parties', partyId), (doc) => {
     if (doc.exists()) {
       const party = doc.data() as Party;
       callback(party.participants);
+    } else {
+      callback([]);
+    }
+  }, (error) => {
+    // Handle permission errors gracefully
+    if (error.code === 'permission-denied') {
+      console.warn(`Permission denied for party participants subscription (partyId: ${partyId}):`, error.message);
+      callback([]);
+    } else {
+      console.error(`Error in party participants snapshot listener (partyId: ${partyId}):`, error);
     }
   });
 };

@@ -1,0 +1,27 @@
+graph TB
+    subgraph "Party Aggregate"
+        Party[Party<br/>Root Entity]
+        PartyGuest[PartyGuest<br/>Subcollection]
+        QueueSong[QueueSong<br/>Subcollection]
+        
+        Party -->|"1:N"| PartyGuest
+        Party -->|"1:N"| QueueSong
+        PartyGuest -.->|"requests"| QueueSong
+    end
+    
+    subgraph "User Aggregate"
+        User[User<br/>Root Entity]
+        FavoriteSong[FavoriteSong<br/>Subcollection]
+        
+        User -->|"1:N"| FavoriteSong
+    end
+    
+    User -.->|"hosts"| Party
+    User -.->|"participates as"| PartyGuest
+    
+    style Party fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    style User fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    style PartyGuest fill:#f3e5f5,stroke:#4a148c
+    style QueueSong fill:#f3e5f5,stroke:#4a148c
+    style FavoriteSong fill:#fff3e0,stroke:#e65100
+

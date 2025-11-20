@@ -20,13 +20,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Check if this is a participant page
   const isParticipantPage = location.pathname.startsWith('/participant/');
 
-  console.log('ProtectedRoute - Auth check:', {
-    user: !!user,
-    loading,
-    isSafari,
-    isParticipantPage,
-    pathname: location.pathname
-  });
+  // Remove console log - auth check working properly
 
   if (loading) {
     return (
@@ -42,7 +36,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    console.log('ProtectedRoute - Redirecting to home page');
     return <Navigate to="/" replace />;
   }
 

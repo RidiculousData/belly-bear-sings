@@ -59,8 +59,19 @@ export async function signInWithProvider(provider: AuthProvider): Promise<User> 
       throw new Error(`Unsupported provider: ${provider}`);
   }
   
-  const result = await signInWithPopup(auth, authProvider);
-  return result.user;
+  try {
+    const result = await signInWithPopup(auth, authProvider);
+    return result.user;
+  } catch (error: any) {
+    // Handle COOP (Cross-Origin-Opener-Policy) errors gracefully
+    // These can occur when the browser blocks popup window closure
+    if (error?.code === 'auth/popup-closed-by-user' || error?.message?.includes('Cross-Origin-Opener-Policy')) {
+      // User closed the popup - this is not necessarily an error
+      throw new Error('Sign-in popup was closed. Please try again.');
+    }
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 // Sign in anonymously

@@ -25,15 +25,6 @@ export const Hero: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const returnTo = searchParams.get('returnTo');
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Hero - URL parameters:', {
-      fullUrl: window.location.href,
-      search: location.search,
-      returnTo: returnTo,
-      searchParams: Object.fromEntries(searchParams.entries())
-    });
-  }, [location.search, returnTo, searchParams]);
 
   // New state to track if party creation is pending after sign-in
   const [pendingPartyCreation, setPendingPartyCreation] = useState(false);
@@ -44,7 +35,6 @@ export const Hero: React.FC = () => {
     if (user && user.uid) {
       // If there's a returnTo URL, navigate there instead of creating a party
       if (pendingReturnTo) {
-        console.log('Hero - Navigating to returnTo URL:', pendingReturnTo);
         navigate(pendingReturnTo);
         return;
       }
@@ -64,11 +54,9 @@ export const Hero: React.FC = () => {
         );
         navigate(`/party/${party.code}`);
       } catch (err) {
-        console.error('Error creating party:', err);
       }
     } else {
       try {
-        console.log('Hero - Starting sign in process, returnTo:', returnTo);
         setPendingPartyCreation(true);
         setPendingReturnTo(returnTo);
         await signInWithProvider('google');
@@ -76,7 +64,6 @@ export const Hero: React.FC = () => {
       } catch (error) {
         setPendingPartyCreation(false);
         setPendingReturnTo(null);
-        console.error('Google sign in failed:', error);
       }
     }
   };
@@ -86,7 +73,6 @@ export const Hero: React.FC = () => {
     if (pendingPartyCreation && user && user.uid && !loading) {
       // If there's a returnTo URL, navigate there
       if (pendingReturnTo) {
-        console.log('Hero - Post sign-in, navigating to returnTo URL:', pendingReturnTo);
         setPendingPartyCreation(false);
         setPendingReturnTo(null);
         navigate(pendingReturnTo);
@@ -111,7 +97,6 @@ export const Hero: React.FC = () => {
           navigate(`/party/${party.code}`);
         } catch (err) {
           setPendingPartyCreation(false);
-          console.error('Error creating party after sign-in:', err);
         }
       })();
     }
@@ -125,13 +110,6 @@ export const Hero: React.FC = () => {
     return 'Let\'s Party!';
   };
 
-  // Debug what we're showing
-  console.log('Hero - Rendering with:', {
-    returnTo,
-    pendingReturnTo,
-    buttonText: getButtonText(),
-    isParticipantFlow: !!pendingReturnTo
-  });
 
   return (
     <Box

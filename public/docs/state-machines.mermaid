@@ -1,0 +1,62 @@
+stateDiagram-v2
+    [*] --> created: Party.createNew()
+    created --> active: start()
+    active --> paused: pause()
+    paused --> active: resume()
+    active --> ended: end()
+    paused --> ended: end()
+    ended --> [*]
+
+    note right of created
+        Initial state after creation
+        status: 'active' (default)
+    end note
+    
+    note right of active
+        Party is running
+        Songs can be queued and played
+    end note
+    
+    note right of paused
+        Party temporarily paused
+        Queue management suspended
+    end note
+    
+    note right of ended
+        Party is finished
+        No further changes allowed
+    end note
+
+---
+
+stateDiagram-v2
+    [*] --> queued: QueueSong.createNew()
+    queued --> playing: markAsPlaying()
+    queued --> skipped: skip()
+    playing --> played: markAsPlayed()
+    playing --> skipped: skip()
+    played --> [*]
+    skipped --> [*]
+
+    note right of queued
+        Song is waiting in queue
+        Can be boosted
+        Can be skipped
+    end note
+    
+    note right of playing
+        Song is currently playing
+        Cannot be boosted
+        Can be skipped or marked as played
+    end note
+    
+    note right of played
+        Song finished playing
+        Final state
+    end note
+    
+    note right of skipped
+        Song was skipped
+        Final state
+    end note
+

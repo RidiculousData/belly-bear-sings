@@ -1,0 +1,91 @@
+graph TB
+    subgraph "Domain Layer"
+        subgraph "Aggregates"
+            PartyAgg[Party Aggregate]
+            UserAgg[User Aggregate]
+        end
+        
+        subgraph "Entities"
+            PartyEnt[Party]
+            UserEnt[User]
+            PartyGuestEnt[PartyGuest]
+            QueueSongEnt[QueueSong]
+            FavoriteSongEnt[FavoriteSong]
+        end
+        
+        subgraph "Value Objects"
+            PartyCodeVO[PartyCode]
+            RequestedByVO[RequestedBy]
+            PraiseVO[Praise]
+            SongMetadataVO[SongMetadata]
+        end
+        
+        subgraph "Enumerations"
+            PartyStatusEnum[PartyStatus]
+            QueueSongStatusEnum[QueueSongStatus]
+            PraiseTypeEnum[PraiseType]
+        end
+        
+        subgraph "Domain Services"
+            PartyCodeGen[PartyCodeGenerator]
+            QueueOrdering[QueueOrderingService]
+        end
+        
+        subgraph "Base Classes"
+            BaseModel[BaseModel<br/>Abstract]
+        end
+    end
+    
+    subgraph "Persistence Layer"
+        Firestore[Firestore]
+        Collections[Collections]
+        Subcollections[Subcollections]
+    end
+    
+    subgraph "Infrastructure"
+        YouTubeAPI[YouTube API]
+        FirebaseAuth[Firebase Auth]
+    end
+    
+    %% Aggregate relationships
+    PartyAgg --> PartyEnt
+    PartyAgg --> PartyGuestEnt
+    PartyAgg --> QueueSongEnt
+    
+    UserAgg --> UserEnt
+    UserAgg --> FavoriteSongEnt
+    
+    %% Entity inheritance
+    PartyEnt --> BaseModel
+    UserEnt --> BaseModel
+    PartyGuestEnt --> BaseModel
+    QueueSongEnt --> BaseModel
+    FavoriteSongEnt --> BaseModel
+    
+    %% Value object usage
+    PartyEnt --> PartyCodeVO
+    QueueSongEnt --> RequestedByVO
+    QueueSongEnt --> PraiseVO
+    QueueSongEnt --> QueueSongStatusEnum
+    PartyEnt --> PartyStatusEnum
+    PraiseVO --> PraiseTypeEnum
+    
+    %% Service usage
+    PartyEnt --> PartyCodeGen
+    QueueSongEnt --> QueueOrdering
+    
+    %% Persistence
+    BaseModel --> Firestore
+    PartyEnt --> Collections
+    PartyGuestEnt --> Subcollections
+    QueueSongEnt --> Subcollections
+    FavoriteSongEnt --> Subcollections
+    
+    %% External dependencies
+    QueueSongEnt -.->|"fetches metadata"| YouTubeAPI
+    UserEnt -.->|"authenticates"| FirebaseAuth
+    
+    style PartyAgg fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    style UserAgg fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    style BaseModel fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+

@@ -21,7 +21,6 @@ import { Feature } from '../components/Feature';
 import { CTA } from '../components/CTA';
 
 export const HomePage: React.FC = () => {
-
   const features = [
     {
       icon: <YouTube fontSize="large" />,
@@ -56,7 +55,7 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Hero />
       
       {/* Features Section */}

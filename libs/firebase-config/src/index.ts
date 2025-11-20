@@ -1,8 +1,11 @@
 // Export configuration
 export * from './config';
 
-// Export Firebase app and services
+// Export Firebase app and services  
 export * from './firebase';
+
+// Note: Tenant/environment helpers are exported from both config and firebase
+// Use getEnvironment() and getEnvironmentCollectionPath() for compatibility
 
 // Export service wrappers
 export * as authService from './services/auth';

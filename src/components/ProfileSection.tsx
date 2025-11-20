@@ -16,6 +16,7 @@ import {
   MusicNote,
   Favorite,
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProfileSectionProps {
   partyId: string;
@@ -33,36 +34,48 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   partyId,
   partyInfo,
 }) => {
-  const theme = useTheme();
+  const { userProfile } = useAuth();
   const [userStats, setUserStats] = useState({
-    displayName: 'Guest User',
+    displayName: userProfile?.displayName || 'Guest User',
     boostsRemaining: 3,
     songsAdded: 0,
     favoritesCount: 0,
   });
 
-  // Mock data for now - TODO: Replace with real user data
   useEffect(() => {
-    // Simulate loading user data
-    setUserStats({
-      displayName: 'Guest User',
-      boostsRemaining: 3,
-      songsAdded: 0,
-      favoritesCount: 0,
-    });
-  }, [partyId]);
+    const loadParticipantData = async () => {
+      if (userProfile?.userId && partyId) {
+        try {
+          const { ParticipantService } = await import('../services/ParticipantService');
+          const participant = await ParticipantService.getParticipantInfo(userProfile.userId, partyId);
+
+          if (participant) {
+            setUserStats(prev => ({
+              ...prev,
+              displayName: participant.displayName,
+              boostsRemaining: participant.boostsRemaining,
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to load participant data:', error);
+        }
+      }
+    };
+
+    loadParticipantData();
+  }, [partyId, userProfile]);
 
   return (
-    <Box sx={{ 
-      height: '100vh', 
-      display: 'flex', 
+    <Box sx={{
+      height: '100vh',
+      display: 'flex',
       flexDirection: 'column',
       pb: { xs: '70px', md: 0 }, // Account for mobile bottom navigation
     }}>
       {/* Header */}
-      <Box sx={{ 
-        p: 2, 
-        borderBottom: 1, 
+      <Box sx={{
+        p: 2,
+        borderBottom: 1,
         borderColor: 'divider',
         bgcolor: 'background.paper',
         position: 'sticky',
@@ -82,10 +95,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <Card sx={{ borderRadius: 2 }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Avatar 
-                  sx={{ 
-                    width: 64, 
-                    height: 64, 
+                <Avatar
+                  sx={{
+                    width: 64,
+                    height: 64,
                     bgcolor: 'primary.main',
                     fontSize: '1.5rem',
                     fontWeight: 'bold',
@@ -104,9 +117,9 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               </Box>
 
               {/* Boost Credits */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: 1,
                 p: 2,
                 bgcolor: 'rgba(255, 215, 0, 0.1)',
@@ -156,7 +169,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                 Party Information
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              
+
               <Stack spacing={2}>
                 <Box>
                   <Typography variant="body2" color="text.secondary">
@@ -166,7 +179,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                     {partyInfo?.partyName || 'Karaoke Party'}
                   </Typography>
                 </Box>
-                
+
                 <Box>
                   <Typography variant="body2" color="text.secondary">
                     Host
@@ -175,15 +188,15 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                     {partyInfo?.hostName || 'Host'}
                   </Typography>
                 </Box>
-                
+
                 <Box>
                   <Typography variant="body2" color="text.secondary">
                     Party Code
                   </Typography>
-                  <Typography 
-                    variant="body1" 
+                  <Typography
+                    variant="body1"
                     fontWeight="bold"
-                    sx={{ 
+                    sx={{
                       fontFamily: 'monospace',
                       bgcolor: 'grey.100',
                       p: 1,
@@ -202,7 +215,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <Card sx={{ borderRadius: 2, bgcolor: 'info.50' }}>
             <CardContent sx={{ p: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                <strong>Tip:</strong> Use your boost credits to move your songs to the top of the queue. 
+                <strong>Tip:</strong> Use your boost credits to move your songs to the top of the queue.
                 You get 3 boosts per party session.
               </Typography>
             </CardContent>

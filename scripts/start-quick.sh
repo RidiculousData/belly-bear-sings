@@ -54,31 +54,36 @@ echo ""
 echo "🎯 All required ports are available!"
 echo ""
 
-# Check if .env.local exists in apps
+# Check if .env.local exists in root
 echo "📋 Setting up environment files..."
-for app in apps/main-app apps/singer-pwa; do
-    if [ ! -f "$app/.env.local" ]; then
-        echo "  Creating .env.local for $app..."
-        echo 'VITE_FIREBASE_API_KEY=demo-key
-VITE_FIREBASE_AUTH_DOMAIN=demo-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=demo-project
-VITE_FIREBASE_STORAGE_BUCKET=demo-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
-VITE_YOUTUBE_API_KEY=demo-youtube-key
-VITE_USE_FIREBASE_EMULATORS=true' > "$app/.env.local"
-    fi
-done
+if [ ! -f ".env.local" ]; then
+    echo "  Creating .env.local..."
+    echo "  ⚠️  Please configure your Firebase Cloud credentials in .env.local"
+    echo 'VITE_TENANT=dev
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+VITE_YOUTUBE_API_KEY=your_youtube_api_key' > ".env.local"
+    echo "  ✅ Created .env.local - Please update with your Firebase credentials"
+fi
 
 echo ""
-echo "🚀 Starting development servers..."
+echo "🌐 Using Firebase Cloud (Production)"
+echo "   Tenant: ${VITE_TENANT:-dev} (set VITE_TENANT in .env.local)"
+echo ""
+
+echo ""
+echo "🚀 Starting development server..."
 echo ""
 echo "📍 Services will be available at:"
-echo "   - Main App (Host & Public): http://localhost:3000"
-echo "   - Singer PWA (Guest): http://localhost:3001"
+echo "   - Main App: http://localhost:3000"
 echo ""
-echo "⚠️  Note: Firebase emulators are not running in quick start mode."
-echo "   For full functionality, use: pnpm start"
+echo "🌐 All data operations use Firebase Cloud"
+echo "   Tenant: ${VITE_TENANT:-dev}"
 echo ""
 
 # Start all development servers

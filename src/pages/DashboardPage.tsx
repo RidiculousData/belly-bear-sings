@@ -156,7 +156,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <Box
       sx={{
-        background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
+        bgcolor: 'background.default',
         minHeight: '100vh',
         color: 'primary.main',
         position: 'relative',

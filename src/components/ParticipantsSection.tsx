@@ -26,8 +26,8 @@ const rainbowColors = [
   '#FF5722', // Deep Orange
 ];
 
-export const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({ 
-  participants 
+export const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
+  participants
 }) => {
   const getParticipantColor = (index: number) => {
     return rainbowColors[index % rainbowColors.length];
@@ -38,13 +38,13 @@ export const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
       <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 'bold', mb: 2 }}>
         Party People ({participants.length})
       </Typography>
-      
+
       <Stack spacing={2}>
         {participants.map((participant, index) => (
           <Box key={participant.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Tooltip title={participant.name}>
-              <Avatar 
-                sx={{ 
+              <Avatar
+                sx={{
                   bgcolor: getParticipantColor(index),
                   color: 'white',
                   width: 40,
@@ -67,6 +67,22 @@ export const ParticipantsSection: React.FC<ParticipantsSectionProps> = ({
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
               {participant.name}
             </Typography>
+            {participant.role === 'HOST' && (
+              <Box
+                sx={{
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1,
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Host
+              </Box>
+            )}
           </Box>
         ))}
       </Stack>

@@ -104,4 +104,39 @@ export interface JoinPartyResponse {
 export interface BoostSongResponse {
   success: boolean;
   boostsRemaining: number;
+}
+
+// Tenant types for multi-tenancy (dev, test, prod are separate tenants)
+export type Tenant = 'dev' | 'test' | 'prod';
+export type Environment = Tenant; // Alias for backward compatibility
+
+// Permission and role types
+export type UserRole = 'super_admin' | 'admin' | 'host' | 'guest' | 'developer' | 'tester';
+
+export interface UserPermission {
+  userId: string;
+  permissions: {
+    tenant: Tenant | 'all'; // Multi-tenant access control
+    role: UserRole;
+    grantedAt: Date;
+    grantedBy: string;
+    expiresAt?: Date;
+  }[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TenantAccess {
+  userId: string;
+  tenants: Tenant[];
+  defaultTenant: Tenant;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Alias for backward compatibility
+export interface EnvironmentAccess extends TenantAccess {
+  environments: Tenant[];
+  defaultEnvironment: Tenant;
 } 

@@ -1,0 +1,134 @@
+classDiagram
+    %% Detailed Relationship View
+    direction TB
+    
+    class User {
+        <<Aggregate Root>>
+        +userId: String {PK}
+        +firstName: String
+        +lastName: String
+        +email: String {UK}
+        +phoneNumber: String
+        +profilePicture: String
+        +createdAt: Date
+        +updatedAt: Date
+        +fullName() String
+        +initials() String
+        +updateProfile(updates) void
+    }
+
+    class Party {
+        <<Aggregate Root>>
+        +partyId: String {PK}
+        +name: String
+        +hostId: String {FK -> User}
+        +code: String {UK}
+        +status: PartyStatus
+        +participants: String[]
+        +maxParticipants: Number
+        +description: String
+        +createdAt: Date
+        +updatedAt: Date
+        +startedAt: Date
+        +endedAt: Date
+        +start() void
+        +pause() void
+        +resume() void
+        +end() void
+        +addParticipant(userId) void
+        +removeParticipant(userId) void
+    }
+
+    class PartyGuest {
+        <<Entity>>
+        +guestId: String {PK}
+        +partyId: String {FK -> Party}
+        +userId: String {FK -> User}
+        +displayName: String
+        +email: String
+        +profilePicture: String
+        +isHost: Boolean
+        +boostsRemaining: Number
+        +joinedAt: Date
+        +leftAt: Date
+        +useBoost() void
+        +addBoosts(count) void
+        +leave() void
+        +rejoin() void
+    }
+
+    class QueueSong {
+        <<Entity>>
+        +songId: String {PK}
+        +partyId: String {FK -> Party}
+        +videoId: String
+        +title: String
+        +artist: String
+        +requestedBy: RequestedBy
+        +boosted: Boolean
+        +boostCount: Number
+        +status: QueueSongStatus
+        +addedAt: Date
+        +boostedAt: Date
+        +playedAt: Date
+        +praises: Praise[]
+        +boost() void
+        +markAsPlaying() void
+        +markAsPlayed() void
+        +skip() void
+        +addPraise(praise) void
+    }
+
+    class FavoriteSong {
+        <<Entity>>
+        +songId: String {PK}
+        +userId: String {FK -> User}
+        +videoId: String
+        +title: String
+        +artist: String
+        +thumbnailUrl: String
+        +duration: String
+        +addedAt: Date
+        +timesRequested: Number
+        +lastRequestedAt: Date
+        +tags: String[]
+        +markAsRequested() void
+        +addTag(tag) void
+    }
+
+    class RequestedBy {
+        <<Value Object>>
+        +id: String
+        +name: String
+        +initials: String
+        +avatar: String
+    }
+
+    class Praise {
+        <<Value Object>>
+        +from: String
+        +fromName: String
+        +type: PraiseType
+        +timestamp: Date
+    }
+
+    %% Primary Relationships
+    User ||--o{ Party : "1..* hosts"
+    User ||--o{ PartyGuest : "1..* participates as"
+    User ||--o{ FavoriteSong : "1..* has favorites"
+    
+    Party ||--|{ PartyGuest : "1..* contains (subcollection)"
+    Party ||--|{ QueueSong : "1..* contains (subcollection)"
+    
+    PartyGuest ||--o{ QueueSong : "1..* requests"
+    
+    QueueSong *-- RequestedBy : "1 contains"
+    QueueSong *-- Praise : "* receives"
+
+    %% Relationship Labels
+    note for User "User Aggregate Root\nManages user profile\nand favorite songs"
+    note for Party "Party Aggregate Root\nManages party lifecycle,\nguests, and queue"
+    note for PartyGuest "Stored in parties/{partyId}/partyGuests"
+    note for QueueSong "Stored in parties/{partyId}/queueSongs\nOrdered by: boosted DESC, addedAt ASC"
+    note for FavoriteSong "Stored in users/{userId}/favoriteSongs"
+

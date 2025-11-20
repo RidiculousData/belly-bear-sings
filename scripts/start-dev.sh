@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🎤 Starting Belly Bear Sings Development Environment..."
+echo "🎤 Starting Belly Bear Sings Development Environment (Firebase Cloud)..."
 echo ""
 
 # Function to check if a port is in use and show what's using it
@@ -22,12 +22,6 @@ check_port() {
 check_running_processes() {
     local processes_running=false
     
-    # Check for Firebase emulators
-    if pgrep -f "firebase emulators" > /dev/null; then
-        echo "⚠️  Firebase emulators are already running"
-        processes_running=true
-    fi
-    
     # Check for Vite dev server
     if pgrep -f "vite.*3000" > /dev/null || lsof -i :3000 > /dev/null 2>&1; then
         echo "⚠️  Vite dev server is already running on port 3000"
@@ -44,10 +38,9 @@ check_running_processes() {
         echo ""
         echo "🔄 Development environment appears to already be running!"
         echo "   - Main App: http://localhost:3000"
-        echo "   - Firebase Emulator UI: http://localhost:4000"
         echo ""
         echo "💡 If you want to restart, first run: pnpm stop"
-        echo "   Or manually kill processes: pkill -f 'firebase emulators' && pkill -f 'vite'"
+        echo "   Or manually kill processes: pkill -f 'vite'"
         echo ""
         return 1
     fi
@@ -59,7 +52,6 @@ check_running_processes() {
 cleanup() {
     echo ""
     echo "🛑 Shutting down development environment..."
-    pkill -f "firebase emulators"
     pkill -f "pnpm dev"
     pkill -f "vite"
     exit 0
@@ -80,7 +72,6 @@ echo "🔍 Checking port availability..."
 ports_available=true
 
 check_port 3000 "Main App" || ports_available=false
-check_port 4000 "Firebase Emulator UI" || ports_available=false
 
 # Check for any processes on port 3001 (should be free)
 if lsof -i :3001 > /dev/null 2>&1; then
@@ -99,11 +90,11 @@ if [ "$ports_available" = false ]; then
     echo "💡 To fix this, you can:"
     echo "   1. Stop the processes using these ports"
     echo "   2. Or run: pnpm stop"
-    echo "   3. Or manually kill: pkill -f 'firebase emulators' && pkill -f 'vite'"
+    echo "   3. Or manually kill: pkill -f 'vite'"
     echo "   4. Then try running this script again"
     echo ""
     echo "🔍 To see what's using these ports:"
-    echo "   lsof -i :3000 -i :4000"
+    echo "   lsof -i :3000"
     echo ""
     exit 1
 fi
@@ -116,59 +107,43 @@ echo ""
 echo "📋 Setting up environment files..."
 if [ ! -f ".env.local" ]; then
     echo "  Creating .env.local for main app..."
-    echo 'VITE_FIREBASE_API_KEY=demo-key
-VITE_FIREBASE_AUTH_DOMAIN=demo-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=demo-project
-VITE_FIREBASE_STORAGE_BUCKET=demo-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
-VITE_YOUTUBE_API_KEY=demo-youtube-key
-VITE_USE_FIREBASE_EMULATORS=true' > ".env.local"
+    echo "  ⚠️  Please configure your Firebase Cloud credentials in .env.local"
+    echo 'VITE_TENANT=dev
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+VITE_YOUTUBE_API_KEY=your_youtube_api_key' > ".env.local"
+    echo "  ✅ Created .env.local - Please update with your Firebase credentials"
+fi
+
+# Check if Firebase credentials are configured
+if grep -q "your_firebase_api_key" .env.local 2>/dev/null; then
+    echo ""
+    echo "⚠️  WARNING: Firebase credentials not configured!"
+    echo "   Please update .env.local with your Firebase Cloud credentials"
+    echo "   The application will not work without proper Firebase configuration"
+    echo ""
 fi
 
 echo ""
-echo "🔥 Starting Firebase emulators..."
-cd firebase
-
-# Start Firebase emulators in the background
-firebase emulators:start &
-FIREBASE_PID=$!
-
-# Wait for emulators to be ready
-echo "  ⏳ Waiting for emulators to start..."
-sleep 5
-
-# Check if emulators are running by testing the UI port
-echo "  🔍 Checking if emulators are ready..."
-attempts=0
-max_attempts=30
-while ! curl -s http://localhost:4000 > /dev/null 2>&1; do
-    attempts=$((attempts + 1))
-    if [ $attempts -ge $max_attempts ]; then
-        echo "  ❌ Firebase emulators failed to start after $max_attempts attempts"
-        echo "  💡 Check if port 4000 is available and try again"
-        exit 1
-    fi
-    echo "  ⏳ Still waiting for emulators... (attempt $attempts/$max_attempts)"
-    sleep 2
-done
-
-echo "  ✅ Firebase emulators are running!"
-
-# Wait a bit more for all services to be fully ready
-sleep 3
+echo "🌐 Using Firebase Cloud (Production)"
+echo "   Tenant: ${VITE_TENANT:-dev} (set VITE_TENANT in .env.local)"
+echo ""
 
 echo ""
-echo "🚀 Starting development servers..."
+echo "🚀 Starting development server..."
 echo ""
 echo "📍 Services will be available at:"
 echo "   - Main App: http://localhost:3000"
-echo "   - Firebase Emulator UI: http://localhost:4000"
 echo "   - Storybook: http://localhost:6006 (run 'pnpm storybook' separately)"
 echo ""
 
-# Start development server with explicit port
-pnpm dev &
+# Start development server
+pnpm vite &
 DEV_PID=$!
 
 # Wait a moment for the dev server to start
@@ -191,10 +166,9 @@ echo "   Ctrl+C - Stop all services"
 echo "   pnpm stop - Stop all services"
 echo "   Visit http://localhost:3000 to get started"
 echo ""
-echo "🎯 Sample users available in development mode:"
-echo "   - alice@example.com / password123 (Host)"
-echo "   - bob@example.com / password123 (Host)"
-echo "   - charlie@example.com / password123 (Participant)"
+echo "🌐 All data operations use Firebase Cloud"
+echo "   Tenant: ${VITE_TENANT:-dev}"
+echo "   Data is stored under: tenants/${VITE_TENANT:-dev}/"
 echo ""
 
 # Wait for development servers and keep script running

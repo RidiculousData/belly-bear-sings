@@ -25,7 +25,7 @@ export const theme = createTheme({
       main: '#66BB6A',
     },
     background: {
-      default: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7E6 100%)',
+      default: '#F8F9FA', // Modern light slate gray
       paper: '#FFFFFF',
     },
     text: {
@@ -96,19 +96,18 @@ export const theme = createTheme({
         },
         containedPrimary: {
           '&:not([data-custom-bg])': {
-            background: 'linear-gradient(90deg, #FFF7E6 0%, #B2996E 100%)',
-            color: '#8C7B4F',
+            backgroundColor: '#B2996E',
+            color: '#FFFFFF',
             '&:hover': {
-              background: 'linear-gradient(90deg, #E6D3B3 0%, #B2996E 100%)',
-              color: '#FFFFFF',
+              backgroundColor: '#8C7B4F',
             },
           },
         },
         containedSecondary: {
-          background: 'linear-gradient(90deg, #FFFFFF 0%, #E6D3B3 100%)',
-          color: '#B2996E',
+          backgroundColor: '#E6D3B3',
+          color: '#8C7B4F',
           '&:hover': {
-            background: 'linear-gradient(90deg, #E6D3B3 0%, #B2996E 100%)',
+            backgroundColor: '#B2996E',
             color: '#FFFFFF',
           },
         },

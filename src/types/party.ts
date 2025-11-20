@@ -18,10 +18,15 @@ export interface Song {
   }>;
 }
 
+export type Role = 'HOST' | 'GUEST';
+
 export interface Participant {
   id: string;
   name: string;
   initials: string;
   avatar?: string;
+  role: Role;
   joinedAt: Date;
+  boostsRemaining: number;
+  score: number;
 } 

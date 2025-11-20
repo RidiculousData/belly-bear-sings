@@ -1,0 +1,108 @@
+sequenceDiagram
+    participant User as User
+    participant Party as Party
+    participant PartyCodeGen as PartyCodeGenerator
+    participant Firestore as Firestore
+    participant PartyGuest as PartyGuest
+
+    Note over User,PartyGuest: Create Party Sequence
+    
+    User->>Party: createNew({name, hostId})
+    Party->>PartyCodeGen: generatePartyCode()
+    PartyCodeGen-->>Party: "XXXX-XXXX"
+    Party->>Party: initialize(status='active', participants=[hostId])
+    Party-->>User: Party instance
+    User->>Party: save()
+    Party->>Party: validate()
+    Party->>Firestore: addDoc(parties, data)
+    Firestore-->>Party: partyId
+    Party->>PartyGuest: createNew({partyId, userId, isHost=true})
+    PartyGuest->>Firestore: addDoc(parties/{partyId}/partyGuests, data)
+    Firestore-->>PartyGuest: guestId
+
+---
+
+sequenceDiagram
+    participant Guest as PartyGuest
+    participant QueueSong as QueueSong
+    participant Party as Party
+    participant Firestore as Firestore
+
+    Note over Guest,Firestore: Add Song to Queue Sequence
+    
+    Guest->>QueueSong: createNew({partyId, videoId, title, artist, requestedBy})
+    QueueSong->>QueueSong: initialize(status='queued', boosted=false)
+    QueueSong-->>Guest: QueueSong instance
+    Guest->>QueueSong: save()
+    QueueSong->>QueueSong: validate()
+    QueueSong->>Firestore: addDoc(parties/{partyId}/queueSongs, data)
+    Firestore-->>QueueSong: songId
+    QueueSong->>Party: (notify queue updated)
+
+---
+
+sequenceDiagram
+    participant Guest as PartyGuest
+    participant QueueSong as QueueSong
+    participant Firestore as Firestore
+
+    Note over Guest,Firestore: Boost Song Sequence
+    
+    Guest->>Guest: check boostsRemaining > 0
+    alt hasBoostsLeft
+        Guest->>QueueSong: boost()
+        QueueSong->>QueueSong: validate(status == 'queued')
+        QueueSong->>QueueSong: set boosted=true, increment boostCount
+        QueueSong->>Firestore: updateDoc(queueSong, {boosted, boostCount, boostedAt})
+        QueueSong-->>Guest: success
+        Guest->>Guest: useBoost()
+        Guest->>Guest: decrement boostsRemaining
+        Guest->>Firestore: updateDoc(partyGuest, {boostsRemaining})
+    else noBoostsLeft
+        Guest->>Guest: throw Error('No boosts remaining')
+    end
+
+---
+
+sequenceDiagram
+    participant Host as User (Host)
+    participant Party as Party
+    participant QueueSong as QueueSong
+    participant Firestore as Firestore
+
+    Note over Host,Firestore: Play Song Sequence
+    
+    Host->>QueueSong: markAsPlaying()
+    QueueSong->>QueueSong: validate(status == 'queued')
+    QueueSong->>QueueSong: set status='playing'
+    QueueSong->>Firestore: updateDoc(queueSong, {status: 'playing'})
+    Firestore-->>QueueSong: updated
+    Note over QueueSong: Song plays...
+    Host->>QueueSong: markAsPlayed()
+    QueueSong->>QueueSong: validate(status == 'playing')
+    QueueSong->>QueueSong: set status='played', playedAt=now()
+    QueueSong->>Firestore: updateDoc(queueSong, {status: 'played', playedAt})
+    Firestore-->>QueueSong: updated
+
+---
+
+sequenceDiagram
+    participant User as User
+    participant Party as Party
+    participant PartyGuest as PartyGuest
+    participant Firestore as Firestore
+
+    Note over User,Firestore: Join Party Sequence
+    
+    User->>Party: findByCode(code)
+    Party->>Firestore: query(parties, where('code', '==', code))
+    Firestore-->>Party: Party instance
+    User->>Party: addParticipant(userId)
+    Party->>Party: validate(not at maxParticipants, not duplicate)
+    Party->>Party: add userId to participants[]
+    Party->>Firestore: updateDoc(party, {participants})
+    User->>PartyGuest: createNew({partyId, userId, displayName, email})
+    PartyGuest->>PartyGuest: initialize(boostsRemaining=3, isHost=false)
+    PartyGuest->>Firestore: addDoc(parties/{partyId}/partyGuests, data)
+    Firestore-->>PartyGuest: guestId
+

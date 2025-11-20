@@ -31,7 +31,7 @@ export const AuthButtons: React.FC = () => {
         },
       }}
     >
-      Sign Up with Google
+      Continue with Google
     </Button>
   );
 }; 

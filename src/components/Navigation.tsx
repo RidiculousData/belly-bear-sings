@@ -12,7 +12,7 @@ export const Navigation: React.FC = () => {
     <AppBar 
       position="static" 
       sx={{ 
-        bgcolor: user ? 'background.paper' : 'transparent',
+        bgcolor: user ? 'background.paper' : 'rgba(255, 255, 255, 0.85)',
         boxShadow: user ? 1 : 'none',
         position: 'absolute',
         top: 0,
@@ -20,7 +20,7 @@ export const Navigation: React.FC = () => {
         right: 0,
         zIndex: 10,
         backdropFilter: user ? 'none' : 'blur(10px)',
-        borderBottom: user ? '1px solid' : 'none',
+        borderBottom: user ? '1px solid' : '1px solid rgba(0, 0, 0, 0.08)',
         borderColor: 'divider',
       }}
     >
@@ -34,7 +34,9 @@ export const Navigation: React.FC = () => {
               userProfile={userProfile} 
               onSignOut={signOut} 
             />
-          ) : null}
+          ) : (
+            <AuthButtons />
+          )}
         </Toolbar>
       </Container>
     </AppBar>

@@ -1,57 +1,30 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 import { getAnalytics } from 'firebase/analytics';
-import { firebaseConfig, emulatorConfig } from './config';
+import { firebaseConfig, currentTenant } from './config';
 
-// Initialize Firebase app
+// Initialize Firebase app (always using Firebase Cloud)
 export const app = initializeApp(firebaseConfig);
 
-// Initialize services
+// Initialize Firebase Cloud services (no emulators)
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
-// Only initialize Analytics in production (not localhost or emulator)
-const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-const isEmulator = typeof window !== 'undefined' && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost');
-
+// Initialize Analytics (only if measurementId is configured)
 export const analytics =
-  typeof window !== 'undefined' &&
-  firebaseConfig.measurementId &&
-  !isLocalhost &&
-  !isEmulator
+  typeof window !== 'undefined' && firebaseConfig.measurementId
     ? getAnalytics(app)
     : null;
 
-// Connect to emulators in development
-if (emulatorConfig.useEmulators && typeof window !== 'undefined') {
-  console.log('Connecting to Firebase emulators...');
-  
-  try {
-    // Connect Auth emulator
-    if (!auth.emulatorConfig) {
-      connectAuthEmulator(auth, `http://${emulatorConfig.auth.host}:${emulatorConfig.auth.port}`);
-      console.log('✅ Connected to Auth emulator');
-    }
-    
-    // Connect Firestore emulator
-    // @ts-ignore - Firestore doesn't expose emulator state
-    if (!db._settings?.host?.includes('localhost')) {
-      connectFirestoreEmulator(db, emulatorConfig.firestore.host, emulatorConfig.firestore.port);
-      console.log('✅ Connected to Firestore emulator');
-    }
-    
-    // Connect Functions emulator
-    // @ts-ignore - Functions doesn't expose emulator state
-    if (!functions._customDomain) {
-      connectFunctionsEmulator(functions, emulatorConfig.functions.host, emulatorConfig.functions.port);
-      console.log('✅ Connected to Functions emulator');
-    }
-  } catch (error) {
-    console.error('❌ Error connecting to Firebase emulators:', error);
-  }
-} else {
-  console.log('Using production Firebase services');
-} 
+// Log tenant information
+if (typeof window !== 'undefined') {
+  console.log(`🌐 Tenant: ${currentTenant} - Using Firebase Cloud (Production)`);
+  console.log(`📊 Project ID: ${firebaseConfig.projectId}`);
+}
+
+// Export tenant/environment helpers
+export { currentTenant as currentEnvironment, getEnvironment, getEnvironmentCollectionPath, getTenantCollectionPath } from './config';
+export type { Tenant as Environment } from './config'; 
