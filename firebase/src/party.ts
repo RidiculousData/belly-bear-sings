@@ -49,6 +49,7 @@ export const joinParty = functions.https.onCall(async (data, context) => {
 
     const { partyId } = data;
     const userId = context.auth.uid;
+    const isAnonymous = context.auth.token.firebase?.sign_in_provider === 'anonymous';
 
     try {
         // Check if party exists and is active
@@ -65,19 +66,45 @@ export const joinParty = functions.https.onCall(async (data, context) => {
             return { success: true, alreadyJoined: true };
         }
 
-        // Fetch user profile
-        const userDoc = await db.collection('users').doc(userId).get();
-        const userData = userDoc.data();
+        let displayName = 'Guest';
+        let photoURL = '';
+        let email: string | undefined;
+
+        if (isAnonymous) {
+            // For anonymous users, use the display name from Firebase Auth
+            // (which was set in the frontend before joining)
+            displayName = context.auth.token.name || 'Guest';
+            // Anonymous users don't have email or photo
+            email = undefined;
+            photoURL = '';
+        } else {
+            // For authenticated users, fetch from user profile
+            const userDoc = await db.collection('users').doc(userId).get();
+            const userData = userDoc.data();
+            displayName = userData?.displayName || 'Guest';
+            photoURL = userData?.photoURL || '';
+            email = userData?.email || context.auth.token.email;
+        }
 
         // Add user as participant
-        await db.collection('parties').doc(partyId).collection('participants').doc(userId).set({
-            displayName: userData?.displayName || 'Guest',
-            photoURL: userData?.photoURL || '',
+        const participantData: any = {
+            displayName,
+            photoURL,
             boostsRemaining: 3,
             role: 'GUEST',
             joinedAt: admin.firestore.FieldValue.serverTimestamp(),
             score: 0,
-        });
+            isAnonymous,
+            userId,
+            partyId,
+        };
+
+        // Only add email if it exists (not for anonymous users)
+        if (email) {
+            participantData.email = email;
+        }
+
+        await db.collection('parties').doc(partyId).collection('participants').doc(userId).set(participantData);
 
         return { success: true, alreadyJoined: false };
     } catch (error) {

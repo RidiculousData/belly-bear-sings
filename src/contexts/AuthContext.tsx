@@ -13,11 +13,13 @@ interface AuthContextType {
   userRoles: UserRole[];
   tenant: Tenant;
   environment: Tenant; // Alias for backward compatibility
+  isAnonymous: boolean;
   hasPermission: (role: UserRole) => boolean;
   hasAnyPermission: (roles: UserRole[]) => boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithProvider: (provider: 'google' | 'facebook' | 'apple') => Promise<void>;
+  signInAnonymously: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -43,6 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const tenant = getEnvironment();
   const environment = tenant; // Alias for backward compatibility
 
@@ -51,7 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // First, check if permissions exist
       const permissions = await PermissionService.getUserPermissions(userId);
-      
+
       // If permissions don't exist, try to create them
       if (!permissions) {
         console.log(`Permissions document not found for user ${userId}. Creating default permissions...`);
@@ -67,13 +70,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
       }
-      
+
       // Load permissions (they should exist now)
       const primaryRole = await PermissionService.getPrimaryRole(userId);
       const roles = await PermissionService.getUserRoles(userId);
       setUserRole(primaryRole);
       setUserRoles(roles);
-      
+
       // Check tenant access (but don't block if check fails)
       try {
         const hasAccess = await PermissionService.hasEnvironmentAccess(userId, tenant);
@@ -110,15 +113,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    
+
     const unsubscribe = authService.subscribeToAuthState(async (firebaseUser) => {
       setUser(firebaseUser);
-      
+
       if (firebaseUser) {
+        // Check if user is anonymous
+        const userIsAnonymous = firebaseUser.isAnonymous;
+        setIsAnonymous(userIsAnonymous);
+
+        // For anonymous users, create a minimal profile and skip permissions
+        if (userIsAnonymous) {
+          const displayName = firebaseUser.displayName || 'Guest';
+          setUserProfile({
+            userId: firebaseUser.uid,
+            displayName: displayName,
+            email: undefined, // Anonymous users don't have email
+            photoURL: undefined,
+            firstName: displayName,
+            lastName: '',
+            createdAt: new Date(),
+          });
+          // Anonymous users get guest role by default
+          setUserRole('guest');
+          setUserRoles(['guest']);
+          setLoading(false);
+          return;
+        }
         // Wait a bit for auth token to propagate to Firestore security rules
         // This helps avoid permission-denied errors immediately after sign-in
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // Ensure we have a fresh auth token
         try {
           await firebaseUser.getIdToken(true);
@@ -129,9 +154,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Get tenant-specific user collection path (multi-tenancy)
         const userCollectionPath = `tenants/${tenant}/users`;
         const userDocRef = doc(db, userCollectionPath, firebaseUser.uid);
-        
+
         let userDoc;
-        
+
         // Try to read the user document
         try {
           userDoc = await getDoc(userDocRef);
@@ -147,17 +172,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Helper function to create user document
         const createUserDocument = async (): Promise<AppUser> => {
           const displayName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Unknown';
-          
+
           // Handle firstName extraction
           let firstName = displayName;
           let lastName = '';
-          
+
           if (displayName.includes(' ')) {
             const nameParts = displayName.split(' ');
             firstName = nameParts[0];
             lastName = nameParts.slice(1).join(' ');
           }
-          
+
           const profile: AppUser = {
             userId: firebaseUser.uid,
             displayName: displayName,
@@ -167,7 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             lastName: lastName,
             createdAt: new Date(),
           };
-          
+
           // Create the user document in Firestore (filter out undefined values)
           const userDocData: any = {
             userId: firebaseUser.uid,
@@ -176,7 +201,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             lastName: profile.lastName,
             createdAt: new Date(),
           };
-          
+
           // Only add fields that are not undefined
           if (profile.email) {
             userDocData.email = profile.email;
@@ -184,11 +209,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (profile.photoURL) {
             userDocData.photoURL = profile.photoURL;
           }
-          
+
           try {
             await setDoc(userDocRef, userDocData);
             console.log('User document created successfully');
-            
+
             // Initialize default permissions for new user
             try {
               await PermissionService.initializeDefaultPermissions(firebaseUser.uid, 'system');
@@ -202,18 +227,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (createError?.code === 'permission-denied') {
               console.warn('Permission denied when creating user document. Waiting and retrying...');
               await new Promise(resolve => setTimeout(resolve, 1000));
-              
+
               // Refresh auth token before retry
               try {
                 await firebaseUser.getIdToken(true);
               } catch (tokenError) {
                 console.warn('Error refreshing auth token before retry:', tokenError);
               }
-              
+
               try {
                 await setDoc(userDocRef, userDocData);
                 console.log('User document created successfully on retry');
-                
+
                 // Initialize default permissions for new user
                 try {
                   await PermissionService.initializeDefaultPermissions(firebaseUser.uid, 'system');
@@ -231,7 +256,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               throw createError;
             }
           }
-          
+
           return profile;
         };
 
@@ -240,11 +265,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // User document exists, load it
             const data = userDoc.data();
             const displayName = data.displayName || firebaseUser.displayName || 'Unknown User';
-            
+
             // Handle firstName extraction - if no firstName in data, extract from displayName
             let firstName = data.firstName;
             let lastName = data.lastName;
-            
+
             if (!firstName) {
               if (displayName.includes(' ')) {
                 const nameParts = displayName.split(' ');
@@ -255,7 +280,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 lastName = '';
               }
             }
-            
+
             const profile: AppUser = {
               userId: firebaseUser.uid,
               displayName: displayName,
@@ -277,7 +302,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await loadUserPermissions(firebaseUser.uid);
         } catch (error: any) {
           console.error('Error in user data flow:', error);
-          
+
           // Even if everything fails, set a basic profile from Firebase Auth
           // so the user can continue using the app
           const displayName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Unknown';
@@ -290,7 +315,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             lastName: displayName.split(' ').slice(1).join(' '),
             createdAt: new Date(),
           });
-          
+
           // Default to guest role on any error
           setUserRole('guest');
           setUserRoles(['guest']);
@@ -299,8 +324,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserProfile(null);
         setUserRole(null);
         setUserRoles([]);
+        setIsAnonymous(false);
       }
-      
+
       setLoading(false);
     });
 
@@ -315,7 +341,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (user) {
         // Get tenant-specific user collection path (multi-tenancy)
         const userCollectionPath = `tenants/${tenant}/users`;
-        
+
         // Create user document in Firestore
         const userDocRef = doc(db, userCollectionPath, user.uid);
         await setDoc(userDocRef, {
@@ -359,6 +385,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signInAnonymouslyHandler = async () => {
+    setLoading(true);
+    try {
+      await authService.signInAnonymous();
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     setLoading(true);
     try {
@@ -387,11 +423,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     userRoles,
     tenant,
     environment, // Alias for backward compatibility
+    isAnonymous,
     hasPermission,
     hasAnyPermission,
     signIn,
     signUp,
     signInWithProvider: signInWithProviderHandler,
+    signInAnonymously: signInAnonymouslyHandler,
     signOut,
   };
 

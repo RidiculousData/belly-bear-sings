@@ -33,14 +33,12 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupOldParties = exports.boostSong = exports.endParty = exports.joinParty = exports.createParty = void 0;
-const party = __importStar(require("./party"));
-const queue = __importStar(require("./queue"));
-const cleanup = __importStar(require("./cleanup"));
-// Export functions
-exports.createParty = party.createParty;
-exports.joinParty = party.joinParty;
-exports.endParty = party.endParty;
-exports.boostSong = queue.boostSong;
-exports.cleanupOldParties = cleanup.cleanupOldParties;
-//# sourceMappingURL=index.js.map
+exports.admin = exports.db = void 0;
+const admin = __importStar(require("firebase-admin"));
+exports.admin = admin;
+// Initialize Firebase Admin if not already initialized
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
+exports.db = admin.firestore();
+//# sourceMappingURL=firebase.js.map

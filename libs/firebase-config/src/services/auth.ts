@@ -2,6 +2,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signInAnonymously,
   signOut,
   GoogleAuthProvider,
@@ -58,18 +59,16 @@ export async function signInWithProvider(provider: AuthProvider): Promise<User> 
     default:
       throw new Error(`Unsupported provider: ${provider}`);
   }
-  
+
   try {
-    const result = await signInWithPopup(auth, authProvider);
-    return result.user;
+    // Use redirect instead of popup to avoid CORS issues
+    // The auth state listener will handle the user after redirect
+    await signInWithRedirect(auth, authProvider);
+    // Note: This function won't return a user directly
+    // The user will be available after redirect via onAuthStateChanged
+    return null as any; // Placeholder, actual user comes from auth state listener
   } catch (error: any) {
-    // Handle COOP (Cross-Origin-Opener-Policy) errors gracefully
-    // These can occur when the browser blocks popup window closure
-    if (error?.code === 'auth/popup-closed-by-user' || error?.message?.includes('Cross-Origin-Opener-Policy')) {
-      // User closed the popup - this is not necessarily an error
-      throw new Error('Sign-in popup was closed. Please try again.');
-    }
-    // Re-throw other errors
+    console.error('Error during sign-in redirect:', error);
     throw error;
   }
 }
@@ -88,7 +87,7 @@ export async function sendPhoneVerification(
   const recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
     size: 'invisible',
   });
-  
+
   return signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
 }
 
@@ -115,6 +114,6 @@ export async function updateUserProfile(updates: {
   if (!auth.currentUser) {
     throw new Error('No user signed in');
   }
-  
+
   await updateProfile(auth.currentUser, updates);
 } 

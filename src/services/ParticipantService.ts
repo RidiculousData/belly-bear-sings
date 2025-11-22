@@ -1,4 +1,4 @@
-import { Party, Participant, User } from '../persistence';
+import { Party, Participant } from '../persistence';
 import { functionsService } from '@bellybearsings/firebase-config';
 
 export class ParticipantService {
@@ -57,7 +57,7 @@ export class ParticipantService {
     userProfile: {
       userId: string;
       displayName: string;
-      email: string;
+      email?: string;
       profilePicture?: string;
     }
   ): Promise<{

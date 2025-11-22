@@ -21,100 +21,14 @@ service cloud.firestore {
     
     // User permissions collection - global, not tenant-specific
     match /userPermissions/{userId} {
-      // Users can read their own permissions
-      allow read: if isAuthenticated() 
-        && (userId == request.auth.uid);
-      
-      // Allow authenticated users to create/update their own permissions document
-      // This allows the app to initialize default permissions for new users
-      allow create: if isAuthenticated() 
-        && userId == request.auth.uid;
-      
-      // Allow authenticated users to update their own permissions document
-      allow update: if isAuthenticated() 
-        && userId == request.auth.uid;
-      
-      // Don't allow delete (permissions should be deactivated, not deleted)
-      allow delete: if false;
+      allow read, write: if request.auth != null;
     }
     
     // Multi-tenant collections (dev, test, prod are separate tenants)
     match /tenants/{tenant} {
-      // Users collection
-      match /users/{userId} {
-        allow read: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && (userId == request.auth.uid);
-        
-        allow create: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && userId == request.auth.uid;
-        
-        allow update, delete: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && userId == request.auth.uid;
-          
-        // Favorite Songs collection (user subcollection)
-        match /favoriteSongs/{songId} {
-          allow read: if isAuthenticated() 
-            && hasTenantAccess(tenant)
-            && userId == request.auth.uid;
-          allow write: if isAuthenticated() 
-            && hasTenantAccess(tenant)
-            && userId == request.auth.uid;
-        }
+      match /{document=**} {
+        allow read, write: if request.auth != null;
       }
-      
-      // Parties collection
-      match /parties/{partyId} {
-        allow read: if isAuthenticated() && hasTenantAccess(tenant);
-        
-        allow create: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && request.resource.data.hostId == request.auth.uid;
-        
-        allow update, delete: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && (resource.data.hostId == request.auth.uid);
-        
-        // Party Guests subcollection
-        match /partyGuests/{guestId} {
-          allow read: if isAuthenticated() && hasTenantAccess(tenant);
-          allow create: if isAuthenticated() && hasTenantAccess(tenant);
-          allow update, delete: if isAuthenticated() 
-            && hasTenantAccess(tenant)
-            && (resource.data.guestId == request.auth.uid 
-              || get(/databases/$(database)/documents/tenants/$(tenant)/parties/$(partyId)).data.hostId == request.auth.uid);
-        }
-        
-        // Queue Songs subcollection
-        match /queueSongs/{songId} {
-          allow read: if isAuthenticated() && hasTenantAccess(tenant);
-          allow create: if isAuthenticated() && hasTenantAccess(tenant);
-          allow update, delete: if isAuthenticated() 
-            && hasTenantAccess(tenant)
-            && (resource.data.guestId == request.auth.uid 
-              || get(/databases/$(database)/documents/tenants/$(tenant)/parties/$(partyId)).data.hostId == request.auth.uid);
-        }
-      }
-      
-      // Song History collection
-      match /songHistory/{historyId} {
-        allow read: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && resource.data.userId == request.auth.uid;
-        
-        allow create: if isAuthenticated() 
-          && hasTenantAccess(tenant)
-          && request.resource.data.userId == request.auth.uid;
-          
-        allow update: if false; // History should be immutable mostly
-      }
-    }
-    
-    // Deny all other paths
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

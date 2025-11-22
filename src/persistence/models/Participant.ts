@@ -9,11 +9,12 @@ export interface ParticipantData {
     partyId: string;
     userId: string;
     displayName: string;
-    email: string;
+    email?: string;
     profilePicture?: string;
     role: Role;
     score: number;
     boostsRemaining: number;
+    isAnonymous: boolean;
     joinedAt: Date;
     leftAt?: Date;
 }
@@ -59,8 +60,12 @@ export class Participant extends BaseModel<ParticipantData> {
         return this.data.displayName || '';
     }
 
-    get email(): string {
-        return this.data.email || '';
+    get email(): string | undefined {
+        return this.data.email;
+    }
+
+    get isAnonymous(): boolean {
+        return this.data.isAnonymous || false;
     }
 
     get userId(): string {
@@ -151,8 +156,9 @@ export class Participant extends BaseModel<ParticipantData> {
         if (!this.data.displayName?.trim()) {
             throw new Error('Display name is required');
         }
-        if (!this.data.email?.trim()) {
-            throw new Error('Email is required');
+        // Email is only required for non-anonymous users
+        if (!this.data.isAnonymous && !this.data.email?.trim()) {
+            throw new Error('Email is required for authenticated users');
         }
         if (this.data.boostsRemaining !== undefined && this.data.boostsRemaining < 0) {
             throw new Error('Boosts remaining cannot be negative');
@@ -160,17 +166,22 @@ export class Participant extends BaseModel<ParticipantData> {
     }
 
     protected transformForSave(): Record<string, any> {
-        return {
+        const data: Record<string, any> = {
             partyId: this.data.partyId,
             userId: this.data.userId,
             displayName: this.data.displayName,
-            email: this.data.email,
             profilePicture: this.data.profilePicture,
             role: this.data.role || 'GUEST',
             score: this.data.score || 0,
             boostsRemaining: this.data.boostsRemaining || 3, // Default 3 boosts
+            isAnonymous: this.data.isAnonymous || false,
             leftAt: this.data.leftAt,
         };
+        // Only include email if it exists (not for anonymous users)
+        if (this.data.email) {
+            data.email = this.data.email;
+        }
+        return data;
     }
 
     protected transformFromFirestore(data: DocumentData, id: string): ParticipantData {
@@ -179,11 +190,12 @@ export class Participant extends BaseModel<ParticipantData> {
             partyId: data.partyId || '',
             userId: data.userId || '',
             displayName: data.displayName || '',
-            email: data.email || '',
+            email: data.email, // Optional for anonymous users
             profilePicture: data.profilePicture,
             role: data.role || (data.isHost ? 'HOST' : 'GUEST'), // Backward compatibility
             score: data.score || 0,
             boostsRemaining: data.boostsRemaining || 3,
+            isAnonymous: data.isAnonymous || false,
             joinedAt: this.convertTimestamp(data.joinedAt) || this.convertTimestamp(data.createdAt) || new Date(),
             leftAt: this.convertTimestamp(data.leftAt),
         };
@@ -194,17 +206,19 @@ export class Participant extends BaseModel<ParticipantData> {
         partyId: string;
         userId: string;
         displayName: string;
-        email: string;
+        email?: string;
         profilePicture?: string;
         role?: Role;
         score?: number;
         boostsRemaining?: number;
+        isAnonymous?: boolean;
     }): Participant {
         return new Participant({
             ...participantData,
             role: participantData.role || 'GUEST',
             score: participantData.score || 0,
             boostsRemaining: participantData.boostsRemaining || 3,
+            isAnonymous: participantData.isAnonymous || false,
             joinedAt: new Date(),
         });
     }

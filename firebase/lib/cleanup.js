@@ -33,14 +33,30 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupOldParties = exports.boostSong = exports.endParty = exports.joinParty = exports.createParty = void 0;
-const party = __importStar(require("./party"));
-const queue = __importStar(require("./queue"));
-const cleanup = __importStar(require("./cleanup"));
-// Export functions
-exports.createParty = party.createParty;
-exports.joinParty = party.joinParty;
-exports.endParty = party.endParty;
-exports.boostSong = queue.boostSong;
-exports.cleanupOldParties = cleanup.cleanupOldParties;
-//# sourceMappingURL=index.js.map
+exports.cleanupOldParties = void 0;
+const functions = __importStar(require("firebase-functions"));
+const firebase_1 = require("./firebase");
+// Cleanup function for old parties (scheduled to run daily)
+exports.cleanupOldParties = functions.pubsub.schedule('every 24 hours').onRun(async () => {
+    const cutoffTime = new Date();
+    cutoffTime.setDate(cutoffTime.getDate() - 1); // 24 hours ago
+    try {
+        const oldParties = await firebase_1.db.collection('parties')
+            .where('isActive', '==', true)
+            .where('createdAt', '<', cutoffTime)
+            .get();
+        const batch = firebase_1.db.batch();
+        oldParties.forEach(doc => {
+            batch.update(doc.ref, {
+                isActive: false,
+                endedAt: firebase_1.admin.firestore.FieldValue.serverTimestamp(),
+            });
+        });
+        await batch.commit();
+        console.log(`Cleaned up ${oldParties.size} old parties`);
+    }
+    catch (error) {
+        console.error('Error cleaning up old parties:', error);
+    }
+});
+//# sourceMappingURL=cleanup.js.map

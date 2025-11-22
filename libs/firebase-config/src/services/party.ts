@@ -1,22 +1,24 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  arrayUnion, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
   serverTimestamp,
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   Timestamp,
   DocumentData,
   addDoc,
   getDocs,
 } from 'firebase/firestore';
-import { db, getEnvironment } from '../firebase';
-import { Party } from '@bellybearsings/shared';
+import { db, auth, getEnvironment } from '../firebase';
+import { Party, QueueSong } from '@bellybearsings/shared';
+import type { PartyGuest } from '@bellybearsings/shared';
 
 export interface QueuedSong {
   id: string;
@@ -69,7 +71,7 @@ export interface SongHistory {
 export const createParty = async (hostId: string, name: string, settings: Party['settings']) => {
   const tenant = getEnvironment();
   const partyCode = generatePartyCode();
-  
+
   const partyData: Omit<Party, 'partyId' | 'createdAt'> = {
     hostId,
     code: partyCode,
@@ -78,14 +80,25 @@ export const createParty = async (hostId: string, name: string, settings: Party[
     participants: [hostId],
     settings,
   };
-  
+
   const docRef = await addDoc(collection(db, 'tenants', tenant, 'parties'), {
     ...partyData,
     createdAt: serverTimestamp(),
   });
-  
-  return { 
-    id: docRef.id, 
+
+  // Create partyGuests document for the host
+  // This is critical for Firestore permissions and subscriptions to work
+  await setDoc(doc(db, 'tenants', tenant, 'parties', docRef.id, 'partyGuests', hostId), {
+    guestId: hostId,
+    displayName: '', // Will be populated from user profile
+    boostsRemaining: settings.boostsPerPerson,
+    isAnonymous: false,
+    isHost: true, // Mark as host
+    joinedAt: serverTimestamp(),
+  });
+
+  return {
+    id: docRef.id,
     ...partyData,
     createdAt: serverTimestamp() as Timestamp
   };
@@ -115,23 +128,23 @@ export const joinParty = async (partyCode: string, userId: string, displayName?:
   const tenant = getEnvironment();
   const q = query(collection(db, 'tenants', tenant, 'parties'), where('code', '==', partyCode));
   const snapshot = await getDocs(q);
-  
+
   if (snapshot.empty) {
     throw new Error('Party not found');
   }
-  
+
   const partyDoc = snapshot.docs[0];
   const partyData = partyDoc.data() as Party;
-  
+
   if (partyData.participants.length >= partyData.settings.maxParticipants) {
     throw new Error('Party is full');
   }
-  
+
   // Add to participants array
   await updateDoc(partyDoc.ref, {
     participants: arrayUnion(userId),
   });
-  
+
   // Also create a guest record if displayName is provided
   if (displayName) {
     await setDoc(doc(db, 'tenants', tenant, 'parties', partyDoc.id, 'partyGuests', userId), {
@@ -143,7 +156,7 @@ export const joinParty = async (partyCode: string, userId: string, displayName?:
       joinedAt: serverTimestamp(),
     });
   }
-  
+
   return { ...partyData, id: partyDoc.id };
 };
 
@@ -163,7 +176,7 @@ export const addSongToQueue = async (
     duration: 0, // Will need to be provided
     isBoosted: false,
   });
-  
+
   return {
     ...song,
     id: songId,
@@ -178,11 +191,11 @@ export const boostSong = async (songId: string, partyId: string) => {
   const tenant = getEnvironment();
   const songRef = doc(db, 'tenants', tenant, 'parties', partyId, 'queueSongs', songId);
   const songDoc = await getDoc(songRef);
-  
+
   if (!songDoc.exists()) {
     throw new Error('Song not found');
   }
-  
+
   await updateDoc(songRef, {
     isBoosted: true,
     boostedAt: serverTimestamp(),
@@ -249,7 +262,7 @@ export const updateSongHistory = async (
       star: song.praises.filter(p => p.type === 'star').length,
     },
   };
-  
+
   if (newPraise) {
     historyData.praises.push({
       ...newPraise,
@@ -257,7 +270,7 @@ export const updateSongHistory = async (
     });
     historyData.totalPraises[newPraise.type]++;
   }
-  
+
   await setDoc(historyRef, historyData);
 };
 
@@ -268,7 +281,7 @@ export const getUserSongHistory = async (userId: string) => {
     where('userId', '==', userId),
     orderBy('sungAt', 'desc')
   );
-  
+
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SongHistory));
 };
@@ -279,12 +292,20 @@ export const subscribeToPartyQueue = (
   callback: (songs: QueuedSong[]) => void
 ) => {
   const tenant = getEnvironment();
+
+  // Debug: Check auth state before creating subscription
+  console.log('🔍 [subscribeToPartyQueue] Creating subscription');
+  console.log('🔍 [subscribeToPartyQueue] Tenant:', tenant);
+  console.log('🔍 [subscribeToPartyQueue] Party ID:', partyId);
+  console.log('🔍 [subscribeToPartyQueue] Auth current user:', auth.currentUser?.uid);
+  console.log('🔍 [subscribeToPartyQueue] Path:', `tenants/${tenant}/parties/${partyId}/queueSongs`);
+
   const q = query(
     collection(db, 'tenants', tenant, 'parties', partyId, 'queueSongs'),
     orderBy('isBoosted', 'desc'),
     orderBy('addedAt', 'asc')
   );
-  
+
   return onSnapshot(q, (snapshot) => {
     const queueSongs = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -312,6 +333,12 @@ export const subscribeToPartyQueue = (
     // Handle permission errors gracefully
     if (error.code === 'permission-denied') {
       console.warn(`Permission denied for party queue subscription (partyId: ${partyId}):`, error.message);
+      console.error('🔍 [subscribeToPartyQueue] Permission denied details:', {
+        partyId,
+        tenant,
+        authUser: auth.currentUser?.uid,
+        path: `tenants/${tenant}/parties/${partyId}/queueSongs`
+      });
       callback([]);
     } else {
       console.error(`Error in party queue snapshot listener (partyId: ${partyId}):`, error);

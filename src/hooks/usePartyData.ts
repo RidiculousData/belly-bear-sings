@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { partyService, firestoreService } from '@bellybearsings/firebase-config';
 import { Song, Participant } from '../types/party';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UsePartyDataReturn {
     queue: Song[];
@@ -16,9 +17,26 @@ export const usePartyData = (partyCode: string | undefined): UsePartyDataReturn 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
     const [partyId, setPartyId] = useState<string>('');
+    const { user, loading: authLoading } = useAuth();
 
     useEffect(() => {
-        if (!partyCode) return;
+        // Wait for auth to be ready
+        if (authLoading) {
+            return;
+        }
+
+        // If no party code, don't try to load
+        if (!partyCode) {
+            setLoading(false);
+            return;
+        }
+
+        // If user is not authenticated, don't try to subscribe
+        if (!user) {
+            setError('You must be signed in to view party data');
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         setError('');
@@ -28,10 +46,27 @@ export const usePartyData = (partyCode: string | undefined): UsePartyDataReturn 
 
         const loadParty = async () => {
             try {
+                // Debug: Check auth state
+                console.log('🔍 Debug: About to load party data');
+                console.log('🔍 User authenticated:', !!user);
+                console.log('🔍 User ID:', user?.uid);
+
+                // Get current auth token to verify it exists
+                if (user) {
+                    try {
+                        const token = await user.getIdToken();
+                        console.log('🔍 Auth token exists:', !!token);
+                        console.log('🔍 Token preview:', token.substring(0, 50) + '...');
+                    } catch (tokenError) {
+                        console.error('🔍 Error getting auth token:', tokenError);
+                    }
+                }
+
                 // First, try to find the party by code in Firestore
                 const party = await partyService.getPartyByCode(partyCode);
                 if (party) {
                     setPartyId(party.partyId);
+                    console.log('🔍 Party found, creating subscriptions for partyId:', party.partyId);
 
                     // Subscribe to queue updates
                     queueUnsubscribe = partyService.subscribeToPartyQueue(
@@ -87,7 +122,7 @@ export const usePartyData = (partyCode: string | undefined): UsePartyDataReturn 
             queueUnsubscribe?.();
             participantsUnsubscribe?.();
         };
-    }, [partyCode]);
+    }, [partyCode, user, authLoading]);
 
     return { queue, participants, loading, error, partyId };
 };

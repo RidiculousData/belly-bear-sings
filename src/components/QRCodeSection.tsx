@@ -8,25 +8,25 @@ interface QRCodeSectionProps {
   onCopyPartyCode: () => void;
 }
 
-export const QRCodeSection: React.FC<QRCodeSectionProps> = ({ 
-  partyCode, 
-  onCopyPartyCode 
+export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
+  partyCode,
+  onCopyPartyCode
 }) => {
-  // Use the new participant URL format that requires authentication
-  const participantUrl = `${window.location.origin}/participant/${partyCode}`;
-  
+  // Use the guest URL that doesn't require authentication
+  const participantUrl = `${window.location.origin}/guest/${partyCode}`;
+
   return (
     <Box sx={{ textAlign: 'center', mb: 3 }}>
       <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 'bold' }}>
         Join the Party
       </Typography>
-      
+
       <Tooltip title="Click to copy participant link">
-        <Box 
+        <Box
           onClick={onCopyPartyCode}
-          sx={{ 
-            bgcolor: 'white', 
-            p: 2, 
+          sx={{
+            bgcolor: 'white',
+            p: 2,
             borderRadius: 2,
             display: 'inline-block',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
@@ -40,11 +40,11 @@ export const QRCodeSection: React.FC<QRCodeSectionProps> = ({
           }}
         >
           <QRCode value={participantUrl} size={120} />
-          
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              fontFamily: 'monospace', 
+
+          <Typography
+            variant="h6"
+            sx={{
+              fontFamily: 'monospace',
               color: 'primary.main',
               fontWeight: 'bold',
               letterSpacing: '0.1em',

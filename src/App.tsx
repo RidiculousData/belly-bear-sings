@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PartyPage } from './pages/PartyPage';
 import { ParticipantPage } from './pages/ParticipantPage';
+import { GuestJoinPage } from './pages/GuestJoinPage';
 import { DomainModelPage } from './pages/DomainModelPage';
 
 function App() {
@@ -12,6 +13,8 @@ function App() {
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
+      {/* Guest join route - no authentication required */}
+      <Route path="/guest/:partyCode" element={<GuestJoinPage />} />
       {/* Main Party view for both host and participants */}
       <Route path="/party/:partyCode" element={<PartyPage />} />
       {/* Protected Routes */}
